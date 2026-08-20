@@ -321,7 +321,7 @@ export default function LearningPathPage() {
           <Button
             disabled={!isCompleted}
             onClick={() => setIsChangingPath(true)}
-            variant={isCompleted ? "default" : "secondary"}
+            variant={isCompleted ? "default" : "outline"}
             className="rounded-xl gap-2 text-xs"
           >
             {isCompleted ? (
