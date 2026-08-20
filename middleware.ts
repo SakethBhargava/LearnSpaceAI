@@ -1,9 +1,11 @@
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
-    request: { headers: request.headers },
+    request: {
+      headers: request.headers,
+    },
   });
 
   const supabase = createServerClient(
@@ -14,11 +16,19 @@ export async function middleware(request: NextRequest) {
         getAll() {
           return request.cookies.getAll();
         },
-        setAll(cookiesToSet) {
+        setAll(
+          cookiesToSet: {
+            name: string;
+            value: string;
+            options?: CookieOptions;
+          }[],
+        ) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value),
           );
-          response = NextResponse.next({ request });
+          response = NextResponse.next({
+            request,
+          });
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options),
           );
@@ -27,45 +37,13 @@ export async function middleware(request: NextRequest) {
     },
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const protectedRoutes = [
-    "/dashboard",
-    "/todos",
-    "/learning-path",
-    "/performance",
-  ];
-
-  const isProtectedRoute = protectedRoutes.some((route) =>
-    request.nextUrl.pathname.startsWith(route),
-  );
-
-  // Redirect unauthenticated users trying to access protected pages straight to /signup
-  if (!user && isProtectedRoute) {
-    return NextResponse.redirect(new URL("/signup", request.url));
-  }
-
-  // Redirect already authenticated users away from /login or /signup to /dashboard
-  if (
-    user &&
-    (request.nextUrl.pathname === "/login" ||
-      request.nextUrl.pathname === "/signup")
-  ) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
-  }
+  await supabase.auth.getUser();
 
   return response;
 }
 
 export const config = {
   matcher: [
-    "/dashboard/:path*",
-    "/todos/:path*",
-    "/learning-path/:path*",
-    "/performance/:path*",
-    "/login",
-    "/signup",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
