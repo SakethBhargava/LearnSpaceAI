@@ -75,7 +75,6 @@ export default function LearningPathPage() {
       return;
     }
 
-    // Fetch current active topic from DB
     const { data: topicData } = await supabase
       .from("user_topics")
       .select("*")
@@ -87,7 +86,6 @@ export default function LearningPathPage() {
     if (topicData) {
       setActiveTopic(topicData);
 
-      // RETRIEVE MODULES FROM DB FIRST
       const { data: moduleData } = await supabase
         .from("topic_modules")
         .select("*")
@@ -113,7 +111,6 @@ export default function LearningPathPage() {
       } = await supabase.auth.getUser();
       if (!user) return;
 
-      // 1. Create new topic row in user_topics
       const { data: newTopic, error: topicError } = await supabase
         .from("user_topics")
         .insert({
@@ -128,7 +125,6 @@ export default function LearningPathPage() {
       if (topicError || !newTopic) throw topicError;
       setActiveTopic(newTopic);
 
-      // 2. Call AI API ONLY when generating a new topic
       const prompt = `Create a concise 4 to 5 module learning path for "${topic}" at "${proficiency}" level. Return ONLY a raw JSON array of strings containing module titles. Example format: ["Module 1: Fundamentals", "Module 2: Advanced Topics"]`;
 
       const response = await fetch("/api/ai/chat", {
@@ -142,8 +138,16 @@ export default function LearningPathPage() {
 
       try {
         const cleanJson = rawText.replace(/```json|```/g, "").trim();
-        moduleTitles = JSON.parse(cleanJson);
+        const parsed = JSON.parse(cleanJson);
+        if (Array.isArray(parsed)) {
+          moduleTitles = parsed;
+        }
       } catch {
+        // Fallback to safety titles if AI response format varies
+      }
+
+      // Guarantees array structure regardless of upstream response format
+      if (!Array.isArray(moduleTitles) || moduleTitles.length === 0) {
         moduleTitles = [
           `Module 1: Fundamentals of ${topic.trim()}`,
           `Module 2: Core Concepts & Practice`,
@@ -152,7 +156,6 @@ export default function LearningPathPage() {
         ];
       }
 
-      // 3. Insert modules into topic_modules table
       const modulesToInsert = moduleTitles.map((title, idx) => ({
         topic_id: newTopic.id,
         title: title,
@@ -167,7 +170,6 @@ export default function LearningPathPage() {
 
       if (savedModules) setModules(savedModules);
 
-      // Save raw output string to roadmap_cache for safety
       await supabase
         .from("user_topics")
         .update({ roadmap_cache: rawText })
@@ -195,7 +197,10 @@ export default function LearningPathPage() {
 
     await supabase
       .from("topic_modules")
-      .update({ is_completed: !currentStatus })
+      .update({
+        is_completed: !currentStatus,
+        completed_at: !currentStatus ? new Date().toISOString() : null,
+      })
       .eq("id", moduleId);
 
     if (activeTopic) {
@@ -222,7 +227,6 @@ export default function LearningPathPage() {
         </p>
       </div>
 
-      {/* Show Creation Form ONLY if no topic exists OR user clicked to change path */}
       {!activeTopic || isChangingPath ? (
         <Card className="border-border bg-card p-6">
           <form onSubmit={handleGeneratePath} className="space-y-6">
@@ -296,7 +300,6 @@ export default function LearningPathPage() {
           </form>
         </Card>
       ) : (
-        /* Display Active Path Directly From Database */
         <div className="space-y-6">
           <Card className="border-border bg-card p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div>
@@ -333,7 +336,6 @@ export default function LearningPathPage() {
             </Button>
           </Card>
 
-          {/* Render Stored Database Modules */}
           <div className="space-y-3">
             {modules.map((m, idx) => (
               <Card
@@ -372,7 +374,6 @@ export default function LearningPathPage() {
             ))}
           </div>
 
-          {/* Bottom Action Card */}
           <Card className="border-border bg-card p-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
             <div className="space-y-1 text-center sm:text-left">
               <h3 className="text-base font-bold flex items-center justify-center sm:justify-start gap-2 text-foreground">

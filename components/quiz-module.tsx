@@ -11,6 +11,8 @@ import {
   Loader2,
   Sparkles,
   RefreshCw,
+  ListOrdered,
+  Award,
 } from "lucide-react";
 
 interface Question {
@@ -21,6 +23,8 @@ interface Question {
 
 export function QuizModule() {
   const [topic, setTopic] = useState<string | null>(null);
+  const [proficiency, setProficiency] = useState<string>("Beginner");
+  const [fetchingTopic, setFetchingTopic] = useState<boolean>(true);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedAnswers, setSelectedAnswers] = useState<{
@@ -29,25 +33,49 @@ export function QuizModule() {
   const [submitted, setSubmitted] = useState(false);
   const [score, setScore] = useState(0);
 
+  // Question Count Selector (10 to 20)
+  const [questionCount, setQuestionCount] = useState<number>(10);
+
   const supabase = createClient();
 
   useEffect(() => {
     async function getActiveTopic() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
+      setFetchingTopic(true);
 
-      const { data } = await supabase
-        .from("user_topics")
-        .select("title")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single();
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
 
-      if (data?.title) setTopic(data.title);
+        if (!user) {
+          setFetchingTopic(false);
+          return;
+        }
+
+        // Querying title and proficiency_level matching your database schema
+        const { data, error } = await supabase
+          .from("user_topics")
+          .select("title, proficiency_level")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (error) {
+          console.error("Supabase fetch error:", error);
+        }
+
+        if (data) {
+          if (data.title) setTopic(data.title);
+          if (data.proficiency_level) setProficiency(data.proficiency_level);
+        }
+      } catch (err) {
+        console.error("Failed to load active topic:", err);
+      } finally {
+        setFetchingTopic(false);
+      }
     }
+
     getActiveTopic();
   }, []);
 
@@ -58,20 +86,32 @@ export function QuizModule() {
     setSelectedAnswers({});
 
     try {
-      const prompt = `Generate a 3-question multiple choice quiz on topic "${topic}". Return raw JSON array only formatted like: [{"question": "...", "options": ["A", "B", "C", "D"], "answer": 0}] where answer is index of correct option (0-3).`;
+      const prompt = `Generate a ${questionCount}-question multiple choice quiz on topic "${topic}" tailored specifically for a ${proficiency} proficiency level. Return raw JSON array only formatted like: [{"question": "...", "options": ["A", "B", "C", "D"], "answer": 0}] where answer is index of correct option (0-3). Do not include extra text or markdown formatting.`;
+
+      const formData = new FormData();
+      formData.append(
+        "messages",
+        JSON.stringify([{ role: "user", content: prompt }]),
+      );
 
       const response = await fetch("/api/ai/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: [{ role: "user", content: prompt }] }),
+        body: formData,
       });
 
+      if (!response.ok) {
+        throw new Error(`API error: ${response.statusText}`);
+      }
+
       const text = await response.text();
-      const cleanedJson = text.substring(
-        text.indexOf("["),
-        text.lastIndexOf("]") + 1,
-      );
-      const parsedQuestions = JSON.parse(cleanedJson);
+
+      // Extract JSON array safely
+      const jsonMatch = text.match(/\[\s*\{[\s\S]*\}\s*\]/);
+      if (!jsonMatch) {
+        throw new Error("No valid JSON array found in response");
+      }
+
+      const parsedQuestions = JSON.parse(jsonMatch[0]);
       setQuestions(parsedQuestions);
     } catch (e) {
       console.error("Quiz parsing error:", e);
@@ -85,16 +125,43 @@ export function QuizModule() {
     setSelectedAnswers((prev) => ({ ...prev, [qIdx]: oIdx }));
   };
 
-  const handleSubmitQuiz = () => {
+  const handleSubmitQuiz = async () => {
     let currentScore = 0;
     questions.forEach((q, idx) => {
       if (selectedAnswers[idx] === q.answer) {
         currentScore += 1;
       }
     });
+
     setScore(currentScore);
     setSubmitted(true);
+
+    // Save evaluation log directly to Supabase for Performance tracking
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (user && topic) {
+      await supabase.from("quiz_results").insert({
+        user_id: user.id,
+        topic_title: topic,
+        proficiency: proficiency,
+        score: currentScore,
+        total_questions: questions.length,
+      });
+    }
   };
+
+  if (fetchingTopic) {
+    return (
+      <Card className="p-8 text-center border-border bg-card flex flex-col items-center justify-center space-y-3">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        <p className="text-xs text-muted-foreground font-medium">
+          Loading active topic...
+        </p>
+      </Card>
+    );
+  }
 
   if (!topic) {
     return (
@@ -111,40 +178,69 @@ export function QuizModule() {
   }
 
   return (
-    <Card className="p-6 border-border bg-card space-y-4">
-      <div className="flex items-center justify-between border-b border-border pb-3">
+    <Card className="p-6 border-border bg-card space-y-6">
+      {/* Header Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-4">
         <div>
-          <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-primary" /> Active Topic Quiz
+          <h3 className="font-bold text-base text-foreground flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary" /> Test Path Assessment
           </h3>
-          <p className="text-xs text-muted">
-            Topic: <span className="font-semibold text-primary">{topic}</span>
-          </p>
+          <div className="flex items-center gap-3 mt-1 text-xs">
+            <span className="text-muted-foreground">
+              Topic: <strong className="text-primary">{topic}</strong>
+            </span>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-medium capitalize">
+              <Award className="h-3 w-3" /> {proficiency} Level
+            </span>
+          </div>
         </div>
+
         <Button
           size="sm"
           onClick={generateQuiz}
           disabled={loading}
-          variant="outline"
-          className="rounded-xl text-xs"
+          className="rounded-xl text-xs gap-1.5 shrink-0"
         >
           {loading ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
-            <RefreshCw className="h-3.5 w-3.5" />
+            <RefreshCw className="h-4 w-4" />
           )}
-          {questions.length === 0 ? " Start Quiz" : " Retake"}
+          {questions.length === 0 ? "Generate Test" : "Retake Test"}
         </Button>
       </div>
 
+      {/* Question Count Selector (10 to 20) */}
+      <div className="bg-muted/40 p-3.5 rounded-xl border border-border flex items-center justify-between gap-4">
+        <label className="text-xs font-semibold text-foreground flex items-center gap-1.5 shrink-0">
+          <ListOrdered className="h-4 w-4 text-primary" /> Number of Questions
+        </label>
+        <div className="flex items-center gap-3 flex-1 max-w-xs">
+          <input
+            type="range"
+            min={10}
+            max={20}
+            step={1}
+            value={questionCount}
+            disabled={loading || questions.length > 0}
+            onChange={(e) => setQuestionCount(Number(e.target.value))}
+            className="flex-1 accent-primary cursor-pointer"
+          />
+          <span className="text-xs font-bold text-foreground bg-background border border-border px-2.5 py-1 rounded-md text-center min-w-[50px]">
+            {questionCount} Qs
+          </span>
+        </div>
+      </div>
+
+      {/* Questions Render Stream */}
       {questions.length > 0 && (
-        <div className="space-y-4">
+        <div className="space-y-6">
           {questions.map((q, qIdx) => (
             <div
               key={qIdx}
-              className="space-y-2 border-b border-border/50 pb-3"
+              className="space-y-3 border-b border-border/60 pb-4 last:border-b-0"
             >
-              <p className="text-xs font-semibold text-foreground">
+              <p className="text-xs sm:text-sm font-semibold text-foreground">
                 {qIdx + 1}. {q.question}
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -170,14 +266,14 @@ export function QuizModule() {
                     <button
                       key={oIdx}
                       onClick={() => handleSelect(qIdx, oIdx)}
-                      className={`p-2.5 rounded-xl border text-left text-xs transition-colors flex items-center justify-between ${optionStyle}`}
+                      className={`p-3 rounded-xl border text-left text-xs transition-colors flex items-center justify-between ${optionStyle}`}
                     >
                       <span>{opt}</span>
                       {submitted && isCorrect && (
-                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                        <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
                       )}
                       {submitted && isSelected && !isCorrect && (
-                        <XCircle className="h-3.5 w-3.5 text-destructive shrink-0" />
+                        <XCircle className="h-4 w-4 text-destructive shrink-0" />
                       )}
                     </button>
                   );
@@ -186,19 +282,24 @@ export function QuizModule() {
             </div>
           ))}
 
+          {/* Submission and Scoring */}
           {!submitted ? (
             <Button
               onClick={handleSubmitQuiz}
               disabled={Object.keys(selectedAnswers).length < questions.length}
-              className="w-full rounded-xl"
+              className="w-full rounded-xl py-2.5 text-sm font-semibold"
             >
-              Submit Answers
+              Submit Answers ({Object.keys(selectedAnswers).length}/
+              {questions.length})
             </Button>
           ) : (
-            <div className="p-3 bg-primary/10 rounded-xl text-center border border-primary/20">
-              <p className="text-xs font-bold text-primary">
-                Score: {score} / {questions.length} (
+            <div className="p-4 bg-primary/10 rounded-xl text-center border border-primary/20 space-y-1">
+              <p className="text-sm font-bold text-primary">
+                Final Score: {score} / {questions.length} (
                 {Math.round((score / questions.length) * 100)}%)
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Level: {proficiency} • Total Questions: {questionCount}
               </p>
             </div>
           )}

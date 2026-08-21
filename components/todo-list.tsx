@@ -17,7 +17,7 @@ export function TodoList() {
     } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("todos")
       .select("*")
       .eq("user_id", user.id)
@@ -38,6 +38,7 @@ export function TodoList() {
     const {
       data: { user },
     } = await supabase.auth.getUser();
+
     if (user) {
       const { error } = await supabase.from("todos").insert({
         task: taskText.trim(),
@@ -55,14 +56,29 @@ export function TodoList() {
   };
 
   const toggleTodo = async (id: string, currentStatus: boolean) => {
-    await supabase
+    const nextStatus = !currentStatus;
+
+    // Optimistic UI update
+    setTodos((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, is_completed: nextStatus } : t)),
+    );
+
+    const { error } = await supabase
       .from("todos")
-      .update({ is_completed: !currentStatus })
+      .update({
+        is_completed: nextStatus,
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", id);
-    fetchTodos();
+
+    if (error) {
+      console.error("Failed to toggle todo status:", error);
+      fetchTodos();
+    }
   };
 
   const deleteTodo = async (id: string) => {
+    setTodos((prev) => prev.filter((t) => t.id !== id));
     await supabase.from("todos").delete().eq("id", id);
     fetchTodos();
   };
@@ -93,7 +109,7 @@ export function TodoList() {
 
       <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
         {todos.length === 0 ? (
-          <p className="text-center text-xs text-muted py-4">
+          <p className="text-center text-xs text-muted-foreground py-4">
             No active tasks found.
           </p>
         ) : (
@@ -109,12 +125,12 @@ export function TodoList() {
                 {t.is_completed ? (
                   <CheckSquare className="h-4 w-4 text-primary shrink-0" />
                 ) : (
-                  <Square className="h-4 w-4 text-muted shrink-0" />
+                  <Square className="h-4 w-4 text-muted-foreground shrink-0" />
                 )}
                 <span
                   className={
                     t.is_completed
-                      ? "line-through text-muted"
+                      ? "line-through text-muted-foreground"
                       : "text-foreground font-medium"
                   }
                 >
@@ -123,7 +139,7 @@ export function TodoList() {
               </button>
               <button
                 onClick={() => deleteTodo(t.id)}
-                className="text-muted hover:text-destructive transition-colors"
+                className="text-muted-foreground hover:text-destructive transition-colors"
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </button>

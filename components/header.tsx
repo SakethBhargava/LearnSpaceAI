@@ -14,16 +14,19 @@ import {
   Compass,
   BarChart2,
   BookOpen,
+  HelpCircle,
+  Menu,
+  X,
 } from "lucide-react";
 
 export function Header({ user: initialUser }: { user?: any }) {
   const [currentUser, setCurrentUser] = useState<any>(initialUser || null);
   const [activeTopic, setActiveTopic] = useState<string>("No Active Topic");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
 
-  // 1. Load active topic helper
   const fetchActiveTopic = async (userId: string) => {
     const { data } = await supabase
       .from("user_topics")
@@ -38,7 +41,6 @@ export function Header({ user: initialUser }: { user?: any }) {
     }
   };
 
-  // 2. Fetch session once on mount & subscribe to auth changes
   useEffect(() => {
     async function initUser() {
       const {
@@ -58,7 +60,7 @@ export function Header({ user: initialUser }: { user?: any }) {
         const user = session?.user || null;
         setCurrentUser(user);
         if (user) fetchActiveTopic(user.id);
-      }
+      },
     );
 
     return () => {
@@ -66,17 +68,22 @@ export function Header({ user: initialUser }: { user?: any }) {
     };
   }, []);
 
-  // 3. Re-check topic ONLY when navigating to routes where topics change
   useEffect(() => {
-    if (currentUser && (pathname === "/learning-path" || pathname === "/dashboard")) {
+    if (
+      currentUser &&
+      (pathname === "/learning-path" ||
+        pathname === "/dashboard" ||
+        pathname === "/quiz")
+    ) {
       fetchActiveTopic(currentUser.id);
     }
+    setMobileMenuOpen(false);
   }, [pathname]);
 
-  // 4. Smooth Client-Side Sign Out
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     setCurrentUser(null);
+    setMobileMenuOpen(false);
     router.push("/");
     router.refresh();
   };
@@ -88,15 +95,16 @@ export function Header({ user: initialUser }: { user?: any }) {
   const navItems = [
     { name: "Todos", href: "/todos", icon: CheckSquare },
     { name: "Learning Path", href: "/learning-path", icon: Compass },
+    { name: "Tests & Quiz", href: "/quiz", icon: HelpCircle },
     { name: "Performance", href: "/performance", icon: BarChart2 },
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   ];
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border bg-card/80 backdrop-blur px-4 sm:px-6 h-[65px] flex items-center transition-colors">
+    <header className="sticky top-0 z-50 border-b border-border bg-card px-4 sm:px-6 h-[65px] flex items-center transition-colors">
       <div className="w-full max-w-7xl mx-auto flex items-center justify-between gap-4">
         {/* Left: Logo & Active Topic */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 sm:gap-4">
           <Link
             href="/"
             className="flex items-center gap-2 font-black text-lg sm:text-xl text-foreground hover:opacity-90 shrink-0 transition-opacity"
@@ -110,19 +118,19 @@ export function Header({ user: initialUser }: { user?: any }) {
           </Link>
 
           {currentUser && (
-            <div className="hidden lg:flex items-center gap-1.5 px-3 py-1 rounded-full bg-background border border-border text-xs font-medium">
+            <div className="hidden xl:flex items-center gap-1.5 px-3 py-1 rounded-full bg-background border border-border text-xs font-medium">
               <BookOpen className="h-3.5 w-3.5 text-primary" />
               <span className="text-muted-foreground">Topic:</span>
-              <span className="text-primary font-semibold max-w-[150px] truncate">
+              <span className="text-primary font-semibold max-w-[140px] truncate">
                 {activeTopic}
               </span>
             </div>
           )}
         </div>
 
-        {/* Center: Navigation */}
+        {/* Center: Desktop Navigation */}
         {currentUser && (
-          <nav className="hidden md:flex items-center gap-1 text-xs font-medium bg-background/60 p-1 rounded-xl border border-border">
+          <nav className="hidden lg:flex items-center gap-1 text-xs font-medium bg-background/60 p-1 rounded-xl border border-border">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
@@ -144,17 +152,17 @@ export function Header({ user: initialUser }: { user?: any }) {
           </nav>
         )}
 
-        {/* Right: Theme Toggle & Profile */}
-        <div className="flex items-center gap-3 shrink-0">
+        {/* Right: Theme Toggle, Profile & Hamburger Menu */}
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <ThemeToggle />
 
           {currentUser ? (
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2 p-1.5 rounded-full bg-background border border-border">
-                <div className="h-7 w-7 rounded-full bg-primary text-white flex items-center justify-center font-bold text-xs shadow-sm">
+              <div className="flex items-center gap-2 p-1 sm:p-1.5 rounded-full bg-background border border-border">
+                <div className="h-7 w-7 rounded-full bg-primary text-white flex items-center justify-center font-bold text-xs shadow-sm shrink-0">
                   {userInitial}
                 </div>
-                <span className="hidden sm:inline text-xs font-medium text-foreground pr-2">
+                <span className="hidden lg:inline text-xs font-medium text-foreground pr-2 max-w-[120px] truncate">
                   {currentUser.email}
                 </span>
               </div>
@@ -164,25 +172,96 @@ export function Header({ user: initialUser }: { user?: any }) {
                 size="sm"
                 onClick={handleSignOut}
                 title="Sign Out"
-                className="text-muted-foreground hover:text-foreground"
+                className="hidden lg:flex text-muted-foreground hover:text-foreground"
               >
                 <LogOut className="h-4 w-4" />
+              </Button>
+
+              {/* Hamburger Toggle */}
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="lg:hidden h-9 w-9 rounded-xl border-border bg-card"
+                aria-label="Toggle Navigation Menu"
+              >
+                {mobileMenuOpen ? (
+                  <X className="h-5 w-5 text-foreground" />
+                ) : (
+                  <Menu className="h-5 w-5 text-foreground" />
+                )}
               </Button>
             </div>
           ) : (
             <div className="flex items-center gap-2">
               <Link href="/login">
-                <Button size="sm" variant="outline">
+                <Button size="sm" variant="outline" className="rounded-xl">
                   Sign In
                 </Button>
               </Link>
               <Link href="/signup">
-                <Button size="sm">Sign Up</Button>
+                <Button size="sm" className="rounded-xl">
+                  Sign Up
+                </Button>
               </Link>
             </div>
           )}
         </div>
       </div>
+
+      {/* Solid Opaque Mobile & Tablet Drawer */}
+      {currentUser && mobileMenuOpen && (
+        <div className="lg:hidden fixed top-[65px] left-0 w-full bg-card border-b border-border p-5 shadow-2xl space-y-4 z-50 animate-in slide-in-from-top-2 duration-200">
+          {/* Active Topic Card */}
+          <div className="flex items-center justify-between p-3 rounded-xl bg-background border border-border text-xs">
+            <div className="flex items-center gap-2">
+              <BookOpen className="h-4 w-4 text-primary shrink-0" />
+              <span className="text-muted-foreground">Active Topic:</span>
+            </div>
+            <span className="text-primary font-bold truncate max-w-[180px]">
+              {activeTopic}
+            </span>
+          </div>
+
+          {/* Navigation Links */}
+          <nav className="flex flex-col gap-1.5">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-colors ${
+                    isActive
+                      ? "bg-primary/10 text-primary"
+                      : "text-foreground bg-background/50 hover:bg-muted/80"
+                  }`}
+                >
+                  <Icon className="h-5 w-5 text-primary" />
+                  <span>{item.name}</span>
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* User Account Row */}
+          <div className="pt-3 border-t border-border flex items-center justify-between gap-2">
+            <span className="text-xs text-muted-foreground truncate max-w-[200px]">
+              {currentUser.email}
+            </span>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleSignOut}
+              className="rounded-xl gap-2 text-xs shrink-0"
+            >
+              <LogOut className="h-4 w-4" /> Sign Out
+            </Button>
+          </div>
+        </div>
+      )}
     </header>
   );
 }

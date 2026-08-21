@@ -2,37 +2,54 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   BarChart2,
   CheckCircle2,
   BookOpen,
   Clock,
   Flame,
-  Calendar,
+  GraduationCap,
+  Award,
+  Sparkles,
 } from "lucide-react";
 
-const DAYS_OF_WEEK = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+interface QuizResult {
+  id: string;
+  topic_title: string;
+  proficiency: string;
+  score: number;
+  total_questions: number;
+  created_at: string;
+}
+
+// Converts any timestamp string into a normalized local YYYY-MM-DD string
+const toLocalDateString = (dateInput: Date | string) => {
+  const d = new Date(dateInput);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+// Gets normalized midnight timestamp in local time for accurate day-difference math
+const toMidnightMs = (dateStr: string) => {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  return new Date(year, month - 1, day).getTime();
+};
 
 export default function PerformancePage() {
   const [stats, setStats] = useState({
     tasksCompleted: "0 / 0",
     activeTopics: "0",
     averageMastery: "0%",
-    streakStatus: "0 Days",
+    streakStatus: "0 Days ❄️",
+    testAccuracy: "0%",
+    totalTestsTaken: "0",
   });
 
-  // Default weekly study schedule (1 = Mon, 2 = Tue, etc.)
-  const [scheduledDays, setScheduledDays] = useState<number[]>([1, 2, 3, 4, 5]);
+  const [quizHistory, setQuizHistory] = useState<QuizResult[]>([]);
   const supabase = createClient();
-
-  const toggleDay = (dayIndex: number) => {
-    setScheduledDays((prev) =>
-      prev.includes(dayIndex)
-        ? prev.filter((d) => d !== dayIndex)
-        : [...prev, dayIndex],
-    );
-  };
 
   useEffect(() => {
     async function fetchPerformanceData() {
@@ -50,10 +67,10 @@ export default function PerformancePage() {
       const totalTodos = todos?.length || 0;
       const completedTodos = todos?.filter((t) => t.is_completed).length || 0;
 
-      // 2. Fetch Topics
+      // 2. Fetch Topics & Modules
       const { data: topics } = await supabase
         .from("user_topics")
-        .select("progress_percent, created_at")
+        .select("id, progress_percent, created_at")
         .eq("user_id", user.id);
 
       const activeTopicsCount = topics?.length || 0;
@@ -65,44 +82,105 @@ export default function PerformancePage() {
           ? Math.round(totalProgress / activeTopicsCount)
           : 0;
 
-      // 3. Compute Streak strictly based on calendar days (Date transitions)
-      const activityDates = new Set<string>();
-
-      todos?.forEach((t) => {
-        if (t.updated_at)
-          activityDates.add(new Date(t.updated_at).toISOString().split("T")[0]);
-      });
-      topics?.forEach((t) => {
-        if (t.created_at)
-          activityDates.add(new Date(t.created_at).toISOString().split("T")[0]);
-      });
-
-      let currentStreak = 0;
-      let checkDate = new Date();
-      let todayStr = checkDate.toISOString().split("T")[0];
-
-      // Check if user completed anything today; if not, check from yesterday
-      if (!activityDates.has(todayStr)) {
-        checkDate.setDate(checkDate.getDate() - 1);
+      const topicIds = topics?.map((t) => t.id) || [];
+      let modulesData: { completed_at: string | null }[] = [];
+      if (topicIds.length > 0) {
+        const { data: modules } = await supabase
+          .from("topic_modules")
+          .select("completed_at")
+          .in("topic_id", topicIds)
+          .eq("is_completed", true);
+        modulesData = modules || [];
       }
 
-      while (true) {
-        const dateStr = checkDate.toISOString().split("T")[0];
-        const dayOfWeek = checkDate.getDay();
+      // 3. Fetch Test / Quiz Results
+      const { data: quizzes } = await supabase
+        .from("quiz_results")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
 
-        // If this day is scheduled in the weekly plan
-        if (scheduledDays.includes(dayOfWeek)) {
-          if (activityDates.has(dateStr)) {
-            currentStreak++;
-          } else {
-            // Missed a scheduled study day -> Streak breaks to 0
-            break;
-          }
+      const totalQuizzes = quizzes?.length || 0;
+      let totalScoreEarned = 0;
+      let totalQuestionsPossible = 0;
+
+      quizzes?.forEach((q) => {
+        totalScoreEarned += q.score;
+        totalQuestionsPossible += q.total_questions;
+      });
+
+      const avgAccuracy =
+        totalQuestionsPossible > 0
+          ? Math.round((totalScoreEarned / totalQuestionsPossible) * 100)
+          : 0;
+
+      setQuizHistory(quizzes || []);
+
+      // 4. Collect All Unique Activity Local Dates (YYYY-MM-DD)
+      const activeDatesSet = new Set<string>();
+
+      todos?.forEach((t) => {
+        if (t.is_completed && t.updated_at) {
+          activeDatesSet.add(toLocalDateString(t.updated_at));
         }
-        checkDate.setDate(checkDate.getDate() - 1);
+      });
 
-        // Safety break limit to prevent infinite loops (e.g. max 365 days back)
-        if (currentStreak > 365) break;
+      modulesData.forEach((m) => {
+        if (m.completed_at) {
+          activeDatesSet.add(toLocalDateString(m.completed_at));
+        }
+      });
+
+      quizzes?.forEach((q) => {
+        if (q.created_at) {
+          activeDatesSet.add(toLocalDateString(q.created_at));
+        }
+      });
+
+      // 5. Robust Log-Driven Streak Calculation
+      // Sort distinct dates chronologically descending (newest date first)
+      const sortedDates = Array.from(activeDatesSet).sort(
+        (a, b) => toMidnightMs(b) - toMidnightMs(a),
+      );
+
+      let currentStreak = 0;
+
+      if (sortedDates.length > 0) {
+        const todayStr = toLocalDateString(new Date());
+
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = toLocalDateString(yesterday);
+
+        const latestActivityDate = sortedDates[0];
+
+        // Check if user completed an activity today or yesterday
+        if (
+          latestActivityDate === todayStr ||
+          latestActivityDate === yesterdayStr
+        ) {
+          currentStreak = 1;
+
+          for (let i = 0; i < sortedDates.length - 1; i++) {
+            const currentMs = toMidnightMs(sortedDates[i]);
+            const previousMs = toMidnightMs(sortedDates[i + 1]);
+
+            // Calculate exact calendar day difference
+            const diffInDays = Math.round(
+              (currentMs - previousMs) / (1000 * 3600 * 24),
+            );
+
+            if (diffInDays === 1) {
+              currentStreak++;
+            } else if (diffInDays > 1) {
+              // Streak breaks if a gap > 1 day occurs between activity logs
+              break;
+            }
+          }
+        } else {
+          // If latest activity is older than yesterday, streak resets to 0
+          currentStreak = 0;
+        }
       }
 
       setStats({
@@ -111,11 +189,13 @@ export default function PerformancePage() {
         averageMastery: `${avgMastery}%`,
         streakStatus:
           currentStreak > 0 ? `${currentStreak} Days 🔥` : "0 Days ❄️",
+        testAccuracy: `${avgAccuracy}%`,
+        totalTestsTaken: `${totalQuizzes}`,
       });
     }
 
     fetchPerformanceData();
-  }, [scheduledDays]);
+  }, []);
 
   const metrics = [
     {
@@ -142,6 +222,18 @@ export default function PerformancePage() {
       icon: Flame,
       color: "text-amber-500",
     },
+    {
+      title: "Test Accuracy",
+      value: stats.testAccuracy,
+      icon: GraduationCap,
+      color: "text-purple-500",
+    },
+    {
+      title: "Tests Completed",
+      value: stats.totalTestsTaken,
+      icon: Sparkles,
+      color: "text-rose-500",
+    },
   ];
 
   return (
@@ -150,50 +242,22 @@ export default function PerformancePage() {
         <h1 className="text-3xl font-black flex items-center justify-center gap-2 text-foreground">
           <BarChart2 className="h-8 w-8 text-primary" /> Performance Analytics
         </h1>
-        <p className="text-sm text-muted">
-          Real-time metrics computed directly from your daily workspace
-          activity.
+        <p className="text-sm text-muted-foreground">
+          Real-time metrics computed directly from your daily workspace activity
+          and test evaluations.
         </p>
       </div>
 
-      {/* Weekly Plan Selection Bar */}
-      <Card className="border-border bg-card p-5 shadow-sm space-y-3">
-        <div className="flex items-center gap-2 text-xs font-bold text-foreground">
-          <Calendar className="h-4 w-4 text-primary" /> Weekly Study Schedule
-        </div>
-        <p className="text-xs text-muted">
-          Select the days you commit to studying. Missing a planned day will
-          reset your streak to zero.
-        </p>
-        <div className="flex flex-wrap gap-2 pt-1">
-          {DAYS_OF_WEEK.map((day, idx) => {
-            const isScheduled = scheduledDays.includes(idx);
-            return (
-              <button
-                key={day}
-                onClick={() => toggleDay(idx)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
-                  isScheduled
-                    ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                    : "bg-background text-muted hover:text-foreground border-border"
-                }`}
-              >
-                {day}
-              </button>
-            );
-          })}
-        </div>
-      </Card>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {/* Metrics Cards Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         {metrics.map((m, idx) => {
           const Icon = m.icon;
           return (
             <Card
               key={idx}
-              className="border-border bg-card shadow-sm p-2 transition-colors"
+              className="border-border bg-card shadow-sm transition-colors"
             >
-              <CardContent className="p-4 flex items-center gap-4">
+              <CardContent className="pt-6 pb-5 px-5 flex items-center gap-4">
                 <div
                   className={`p-3 rounded-xl bg-background border border-border shrink-0 ${m.color}`}
                 >
@@ -203,7 +267,7 @@ export default function PerformancePage() {
                   <div className="text-2xl font-bold text-foreground leading-none mb-1">
                     {m.value}
                   </div>
-                  <div className="text-xs text-muted font-medium">
+                  <div className="text-xs text-muted-foreground font-medium">
                     {m.title}
                   </div>
                 </div>
@@ -212,6 +276,79 @@ export default function PerformancePage() {
           );
         })}
       </div>
+
+      {/* Assessment History Table */}
+      <Card className="border-border bg-card shadow-sm">
+        <CardHeader className="px-5 py-4 border-b border-border">
+          <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
+            <Award className="h-4 w-4 text-primary" /> Assessment History & Test
+            Logs
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {quizHistory.length === 0 ? (
+            <div className="p-6 text-center text-xs text-muted-foreground">
+              No test attempts recorded yet. Take a test under{" "}
+              <strong>Test Path</strong> to populate your analytics.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-muted/40 text-muted-foreground border-b border-border font-semibold">
+                  <tr>
+                    <th className="p-3.5 pl-5">Topic</th>
+                    <th className="p-3.5">Proficiency</th>
+                    <th className="p-3.5">Score</th>
+                    <th className="p-3.5">Accuracy</th>
+                    <th className="p-3.5 pr-5">Date</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/60">
+                  {quizHistory.map((q) => {
+                    const percent = Math.round(
+                      (q.score / q.total_questions) * 100,
+                    );
+                    return (
+                      <tr
+                        key={q.id}
+                        className="hover:bg-muted/20 transition-colors"
+                      >
+                        <td className="p-3.5 pl-5 font-semibold text-foreground">
+                          {q.topic_title}
+                        </td>
+                        <td className="p-3.5">
+                          <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 text-[10px] font-medium capitalize">
+                            {q.proficiency}
+                          </span>
+                        </td>
+                        <td className="p-3.5 font-medium">
+                          {q.score} / {q.total_questions}
+                        </td>
+                        <td className="p-3.5">
+                          <span
+                            className={`font-bold ${
+                              percent >= 70
+                                ? "text-emerald-500"
+                                : percent >= 40
+                                  ? "text-amber-500"
+                                  : "text-destructive"
+                            }`}
+                          >
+                            {percent}%
+                          </span>
+                        </td>
+                        <td className="p-3.5 pr-5 text-muted-foreground">
+                          {new Date(q.created_at).toLocaleDateString()}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
