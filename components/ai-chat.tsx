@@ -10,6 +10,7 @@ import {
   X,
   FileText,
   Image as ImageIcon,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StudyTimer } from "@/components/study-timer";
@@ -37,7 +38,7 @@ export function AIChat() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const MAX_FILE_SIZE = 15 * 1024 * 1024;
+  const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB
   const ACCEPTED_TYPES = [
     "image/*",
     "application/pdf",
@@ -99,14 +100,20 @@ export function AIChat() {
         : undefined,
     };
 
-    const updatedMessages: Message[] = [...messages, userPayload];
+    // 1. Add user message and a blank assistant placeholder
+    const updatedMessages: Message[] = [
+      ...messages,
+      userPayload,
+      { role: "assistant", content: "" },
+    ];
     setMessages(updatedMessages);
     setLoading(true);
     setIsStreaming(false);
 
     try {
       const formData = new FormData();
-      formData.append("messages", JSON.stringify(updatedMessages));
+      // Send history excluding the empty placeholder
+      formData.append("messages", JSON.stringify([...messages, userPayload]));
       if (currentFile) {
         formData.append("file", currentFile);
       }
@@ -116,11 +123,14 @@ export function AIChat() {
         body: formData,
       });
 
-      if (!response.ok)
-        throw new Error(`Server returned status ${response.status}`);
-      if (!response.body) throw new Error("No response body returned");
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+          errorText || `Server returned status ${response.status}`,
+        );
+      }
 
-      setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
+      if (!response.body) throw new Error("No response stream available");
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -143,16 +153,17 @@ export function AIChat() {
           return next;
         });
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Chat Error:", err);
-      setMessages((prev) => [
-        ...prev,
-        {
+      setMessages((prev) => {
+        const next = [...prev];
+        next[next.length - 1] = {
           role: "assistant",
           content:
-            "⚠️ Failed to send message. Please check your network or API key.",
-        },
-      ]);
+            "⚠️ Failed to get a response from Gemini. Please verify your API key and connection.",
+        };
+        return next;
+      });
     } finally {
       setLoading(false);
       setIsStreaming(false);
@@ -176,12 +187,15 @@ export function AIChat() {
       <div className="flex-1 p-3 sm:p-4 overflow-y-auto space-y-4 min-w-0">
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-4 text-muted-foreground">
-            <Bot className="h-10 w-10 text-primary mb-2 opacity-80" />
-            <p className="text-xs sm:text-sm font-medium text-foreground">
+            <div className="p-3 rounded-2xl bg-primary/10 border border-primary/20 text-primary mb-3">
+              <Sparkles className="h-6 w-6" />
+            </div>
+            <p className="text-xs sm:text-sm font-semibold text-foreground">
               Ask Gemini anything about your active topic.
             </p>
-            <p className="text-[11px] text-muted-foreground mt-1 max-w-xs">
-              Get instant clarifications, upload documents, or request quizzes.
+            <p className="text-[11px] text-muted-foreground mt-1 max-w-xs leading-relaxed">
+              Get explanations, breakdown complex topics, upload study
+              materials, or review code.
             </p>
           </div>
         ) : (
@@ -202,9 +216,10 @@ export function AIChat() {
                 className={`max-w-[88%] sm:max-w-[82%] rounded-2xl px-3.5 py-2 text-xs sm:text-sm leading-relaxed min-w-0 break-words ${
                   m.role === "user"
                     ? "bg-primary text-primary-foreground font-medium rounded-tr-none"
-                    : "bg-background border border-border text-foreground rounded-tl-none"
+                    : "bg-background border border-border text-foreground rounded-tl-none shadow-sm"
                 }`}
               >
+                {/* User Attachment Chip */}
                 {m.file && (
                   <div className="flex items-center gap-1.5 mb-1.5 p-1.5 rounded bg-black/10 dark:bg-white/10 text-[11px]">
                     {m.file.type.startsWith("image/") ? (
@@ -219,6 +234,7 @@ export function AIChat() {
                   </div>
                 )}
 
+                {/* Content vs Thinking State */}
                 {m.role === "assistant" ? (
                   m.content ? (
                     <div className="prose dark:prose-invert max-w-none text-xs sm:text-sm leading-relaxed space-y-1.5 overflow-hidden">
@@ -255,12 +271,15 @@ export function AIChat() {
                       </ReactMarkdown>
                     </div>
                   ) : (
-                    <span className="flex items-center gap-2 text-muted-foreground text-xs">
-                      <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
-                      <span>
-                        {isStreaming ? "Responding..." : "Thinking..."}
+                    /* Dynamic Thinking / Processing State */
+                    <div className="flex items-center gap-2 py-0.5 text-xs text-muted-foreground font-medium">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-primary shrink-0" />
+                      <span className="animate-pulse">
+                        {loading && !isStreaming
+                          ? "Thinking & processing..."
+                          : "Generating response..."}
                       </span>
-                    </span>
+                    </div>
                   )
                 ) : (
                   m.content
@@ -308,7 +327,7 @@ export function AIChat() {
           </p>
         )}
 
-        {/* Form Container */}
+        {/* Input Form */}
         <form
           onSubmit={handleSubmit}
           className="flex items-center gap-1.5 w-full min-w-0"
@@ -326,13 +345,15 @@ export function AIChat() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask Gemini or attach file..."
-            className="flex-1 min-w-0 bg-background border border-border text-foreground placeholder:text-muted-foreground rounded-full px-3.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors"
+            disabled={loading}
+            className="flex-1 min-w-0 bg-background border border-border text-foreground placeholder:text-muted-foreground rounded-full px-3.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors disabled:opacity-50"
           />
 
           <Button
             type="button"
             variant="ghost"
             size="icon"
+            disabled={loading}
             className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted shrink-0"
             onClick={() => fileInputRef.current?.click()}
             title="Attach File"

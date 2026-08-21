@@ -13,6 +13,7 @@ import {
   RefreshCw,
   ListOrdered,
   Award,
+  AlertCircle,
 } from "lucide-react";
 
 interface Question {
@@ -27,6 +28,7 @@ export function QuizModule() {
   const [fetchingTopic, setFetchingTopic] = useState<boolean>(true);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(false);
+  const [quizError, setQuizError] = useState<string | null>(null);
   const [selectedAnswers, setSelectedAnswers] = useState<{
     [key: number]: number;
   }>({});
@@ -81,6 +83,7 @@ export function QuizModule() {
   const generateQuiz = async () => {
     if (!topic) return;
     setLoading(true);
+    setQuizError(null);
     setSubmitted(false);
     setSelectedAnswers({});
 
@@ -98,21 +101,43 @@ export function QuizModule() {
         body: formData,
       });
 
+      const responseText = await response.text();
+
       if (!response.ok) {
-        throw new Error(`API error: ${response.statusText}`);
+        let errorMsg = `Server error (${response.status}): ${response.statusText}`;
+        try {
+          const parsedError = JSON.parse(responseText);
+          if (parsedError.error) {
+            errorMsg = parsedError.error;
+          }
+        } catch {
+          if (responseText.trim()) {
+            errorMsg = responseText;
+          }
+        }
+        throw new Error(errorMsg);
       }
 
-      const text = await response.text();
-
-      const jsonMatch = text.match(/\[\s*\{[\s\S]*\}\s*\]/);
+      // Extract JSON array safely
+      const jsonMatch = responseText.match(/\[\s*\{[\s\S]*\}\s*\]/);
       if (!jsonMatch) {
-        throw new Error("No valid JSON array found in response");
+        throw new Error(
+          "The AI model did not return a valid quiz format. Please try generating again.",
+        );
       }
 
       const parsedQuestions = JSON.parse(jsonMatch[0]);
+      if (!Array.isArray(parsedQuestions) || parsedQuestions.length === 0) {
+        throw new Error("No quiz questions were generated.");
+      }
+
       setQuestions(parsedQuestions);
-    } catch (e) {
-      console.error("Quiz parsing error:", e);
+    } catch (e: any) {
+      console.error("Quiz generation error:", e);
+      setQuizError(
+        e.message ||
+          "Failed to generate quiz. Please check your API quota or network connection.",
+      );
     } finally {
       setLoading(false);
     }
@@ -208,7 +233,32 @@ export function QuizModule() {
         </Button>
       </div>
 
-      {/* Question Count Selector (Responsive Layout Fix) */}
+      {/* Error Alert Display */}
+      {quizError && (
+        <div className="p-4 rounded-xl border border-destructive/30 bg-destructive/10 text-destructive text-xs space-y-2 animate-in fade-in-50 duration-200">
+          <div className="flex items-start gap-2.5">
+            <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
+            <div className="space-y-1 flex-1">
+              <p className="font-bold text-sm">Quiz Generation Failed</p>
+              <p className="leading-relaxed opacity-90 break-words">
+                {quizError}
+              </p>
+            </div>
+          </div>
+          <div className="pt-1 flex justify-end">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={generateQuiz}
+              className="text-xs h-8 border-destructive/30 text-destructive hover:bg-destructive/10"
+            >
+              Retry Test Generation
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Question Count Selector */}
       <div className="bg-muted/40 p-3.5 rounded-xl border border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full min-w-0">
         <label className="text-xs font-semibold text-foreground flex items-center gap-1.5 shrink-0">
           <ListOrdered className="h-4 w-4 text-primary shrink-0" /> Number of
