@@ -138,7 +138,6 @@ export default function PerformancePage() {
       });
 
       // 5. Robust Log-Driven Streak Calculation
-      // Sort distinct dates chronologically descending (newest date first)
       const sortedDates = Array.from(activeDatesSet).sort(
         (a, b) => toMidnightMs(b) - toMidnightMs(a),
       );
@@ -154,7 +153,6 @@ export default function PerformancePage() {
 
         const latestActivityDate = sortedDates[0];
 
-        // Check if user completed an activity today or yesterday
         if (
           latestActivityDate === todayStr ||
           latestActivityDate === yesterdayStr
@@ -165,7 +163,6 @@ export default function PerformancePage() {
             const currentMs = toMidnightMs(sortedDates[i]);
             const previousMs = toMidnightMs(sortedDates[i + 1]);
 
-            // Calculate exact calendar day difference
             const diffInDays = Math.round(
               (currentMs - previousMs) / (1000 * 3600 * 24),
             );
@@ -173,12 +170,10 @@ export default function PerformancePage() {
             if (diffInDays === 1) {
               currentStreak++;
             } else if (diffInDays > 1) {
-              // Streak breaks if a gap > 1 day occurs between activity logs
               break;
             }
           }
         } else {
-          // If latest activity is older than yesterday, streak resets to 0
           currentStreak = 0;
         }
       }
@@ -203,36 +198,42 @@ export default function PerformancePage() {
       value: stats.tasksCompleted,
       icon: CheckCircle2,
       color: "text-emerald-500",
+      glow: "hover:shadow-[0_0_25px_-5px_rgba(16,185,129,0.3)] shadow-[0_0_15px_-3px_rgba(16,185,129,0.15)] hover:border-emerald-500/50",
     },
     {
       title: "Active Topics",
       value: stats.activeTopics,
       icon: BookOpen,
       color: "text-indigo-500",
+      glow: "hover:shadow-[0_0_25px_-5px_rgba(99,102,241,0.3)] shadow-[0_0_15px_-3px_rgba(99,102,241,0.15)] hover:border-indigo-500/50",
     },
     {
       title: "Average Topic Mastery",
       value: stats.averageMastery,
       icon: Clock,
       color: "text-blue-500",
+      glow: "hover:shadow-[0_0_25px_-5px_rgba(59,130,246,0.3)] shadow-[0_0_15px_-3px_rgba(59,130,246,0.15)] hover:border-blue-500/50",
     },
     {
       title: "Streak Status",
       value: stats.streakStatus,
       icon: Flame,
       color: "text-amber-500",
+      glow: "hover:shadow-[0_0_25px_-5px_rgba(245,158,11,0.3)] shadow-[0_0_15px_-3px_rgba(245,158,11,0.15)] hover:border-amber-500/50",
     },
     {
       title: "Test Accuracy",
       value: stats.testAccuracy,
       icon: GraduationCap,
       color: "text-purple-500",
+      glow: "hover:shadow-[0_0_25px_-5px_rgba(168,85,247,0.3)] shadow-[0_0_15px_-3px_rgba(168,85,247,0.15)] hover:border-purple-500/50",
     },
     {
       title: "Tests Completed",
       value: stats.totalTestsTaken,
       icon: Sparkles,
       color: "text-rose-500",
+      glow: "hover:shadow-[0_0_25px_-5px_rgba(244,63,94,0.3)] shadow-[0_0_15px_-3px_rgba(244,63,94,0.15)] hover:border-rose-500/50",
     },
   ];
 
@@ -255,7 +256,7 @@ export default function PerformancePage() {
           return (
             <Card
               key={idx}
-              className="border-border bg-card shadow-sm transition-colors"
+              className={`border-border bg-card transition-all duration-300 ${m.glow}`}
             >
               <CardContent className="pt-6 pb-5 px-5 flex items-center gap-4">
                 <div
