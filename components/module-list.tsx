@@ -2,114 +2,118 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { CheckCircle2, Circle, Layers, Loader2 } from "lucide-react";
+import { CheckCircle2, Circle, Loader2 } from "lucide-react";
+
+// 1. Add Props Interface
+interface ModuleListProps {
+  topicId?: string | null;
+  isParentLoading?: boolean;
+}
 
 interface Module {
   id: string;
   title: string;
   is_completed: boolean;
-  order_index: number;
 }
 
-export function ModuleList({
-  topicId,
-  isParentLoading = false,
-}: {
-  topicId: string | null;
-  isParentLoading?: boolean;
-}) {
+// 2. Accept props in component definition
+export function ModuleList({ topicId, isParentLoading }: ModuleListProps) {
   const [modules, setModules] = useState<Module[]>([]);
+  const [topicTitle, setTopicTitle] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
 
   useEffect(() => {
-    async function fetchModules() {
-      if (!topicId) {
+    async function fetchDashboardModules() {
+      if (isParentLoading) return;
+      setLoading(true);
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
         setLoading(false);
         return;
       }
 
-      setLoading(true);
-      const { data, error } = await supabase
-        .from("topic_modules")
-        .select("*")
-        .eq("topic_id", topicId)
-        .order("order_index", { ascending: true });
+      // Query active topic
+      const { data: activeTopic } = topicId
+        ? await supabase
+            .from("user_topics")
+            .select("id, title")
+            .eq("id", topicId)
+            .maybeSingle()
+        : await supabase
+            .from("user_topics")
+            .select("id, title")
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
 
-      if (error) {
-        console.error("Error fetching topic modules:", error);
-      } else if (data) {
-        setModules(data);
+      if (activeTopic) {
+        setTopicTitle(activeTopic.title);
+
+        const { data: dbModules } = await supabase
+          .from("topic_modules")
+          .select("id, title, is_completed")
+          .eq("topic_id", activeTopic.id)
+          .order("order_index", { ascending: true });
+
+        if (dbModules) setModules(dbModules);
       }
       setLoading(false);
     }
 
-    if (!isParentLoading) {
-      fetchModules();
-    }
+    fetchDashboardModules();
   }, [topicId, isParentLoading]);
 
-  const toggleModule = async (moduleId: string, currentStatus: boolean) => {
-    const nextStatus = !currentStatus;
-
-    setModules((prev) =>
-      prev.map((m) =>
-        m.id === moduleId ? { ...m, is_completed: nextStatus } : m,
-      ),
-    );
-
-    await supabase
-      .from("topic_modules")
-      .update({ is_completed: nextStatus })
-      .eq("id", moduleId);
-  };
-
-  if (isParentLoading || loading) {
+  if (loading || isParentLoading) {
     return (
-      <div className="flex items-center justify-center py-6 gap-2 text-xs text-muted">
-        <Loader2 className="h-4 w-4 animate-spin text-primary" /> Loading
-        modules...
+      <div className="flex items-center justify-center py-6 text-xs text-muted-foreground gap-2">
+        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+        <span>Loading active modules...</span>
       </div>
     );
   }
 
-  if (!topicId || modules.length === 0) {
+  if (!topicTitle || modules.length === 0) {
     return (
-      <div className="p-4 text-center border border-dashed border-border rounded-xl space-y-1">
-        <Layers className="h-5 w-5 text-muted mx-auto mb-1" />
-        <p className="text-xs font-semibold text-foreground">
-          No Modules Found
-        </p>
-        <p className="text-[11px] text-muted">
-          Generate a roadmap in <strong>Learning Path</strong> to view modules
-          here.
-        </p>
+      <div className="text-center py-6 text-xs text-muted-foreground">
+        No active modules found. Go to Learning Path to create a roadmap.
       </div>
     );
   }
 
   return (
-    <div className="space-y-2">
-      {modules.map((mod) => (
-        <button
-          key={mod.id}
-          onClick={() => toggleModule(mod.id, mod.is_completed)}
-          className="w-full flex items-center justify-between p-3 rounded-xl border border-border bg-card hover:bg-secondary/50 transition-colors text-left"
-        >
-          <span
-            className={`text-xs font-medium ${
-              mod.is_completed ? "line-through text-muted" : "text-foreground"
-            }`}
+    <div className="space-y-3">
+      <div className="text-xs font-bold text-primary uppercase tracking-wider">
+        Topic: {topicTitle}
+      </div>
+      <div className="space-y-2">
+        {modules.map((m) => (
+          <div
+            key={m.id}
+            className="flex items-center gap-2.5 p-2.5 rounded-lg bg-background border border-border text-xs"
           >
-            {mod.order_index + 1}. {mod.title}
-          </span>
-          {mod.is_completed ? (
-            <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-          ) : (
-            <Circle className="h-4 w-4 text-muted shrink-0" />
-          )}
-        </button>
-      ))}
+            {m.is_completed ? (
+              <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+            ) : (
+              <Circle className="h-4 w-4 text-muted-foreground shrink-0" />
+            )}
+            <span
+              className={`truncate font-medium ${
+                m.is_completed
+                  ? "line-through text-muted-foreground"
+                  : "text-foreground"
+              }`}
+            >
+              {m.title}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

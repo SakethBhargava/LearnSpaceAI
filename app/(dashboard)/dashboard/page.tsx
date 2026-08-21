@@ -23,7 +23,7 @@ export default function DashboardPage() {
       } = await supabase.auth.getUser();
 
       if (user) {
-        // Fetch the latest active topic created by the user
+        // Retrieve the latest active topic created by the user
         const { data } = await supabase
           .from("user_topics")
           .select("id")
@@ -56,7 +56,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-        {/* Left Column: AI Chat & Dynamic Quiz Module */}
+        {/* Main Section */}
         <div className="lg:col-span-2 space-y-6">
           <Card className="h-[calc(100vh-250px)] min-h-[420px] max-h-[600px] border-border bg-card shadow-sm flex flex-col transition-colors">
             <CardHeader className="px-5 py-3 border-b border-border shrink-0">
@@ -72,13 +72,11 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          {/* AI Quiz Module based on active topic */}
           <QuizModule />
         </div>
 
-        {/* Right Sidebar Tools */}
+        {/* Right Sidebar */}
         <div className="space-y-6">
-          {/* Active Learning Path Modules Card */}
           <Card className="border-border bg-card shadow-sm transition-colors">
             <CardHeader className="px-5 py-3.5 border-b border-border">
               <CardTitle className="text-sm font-semibold text-foreground">
@@ -93,7 +91,6 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          {/* Workspace Tasks */}
           <Card className="border-border bg-card shadow-sm transition-colors">
             <CardHeader className="px-5 py-3.5 border-b border-border">
               <CardTitle className="text-sm font-semibold text-foreground">
@@ -105,7 +102,6 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          {/* Resources Card */}
           <Card className="border-border bg-card shadow-sm transition-colors">
             <CardHeader className="px-5 py-3.5 border-b border-border">
               <CardTitle className="text-sm font-semibold text-foreground">

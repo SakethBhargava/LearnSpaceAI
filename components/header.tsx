@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -20,38 +20,65 @@ export function Header({ user: initialUser }: { user?: any }) {
   const [currentUser, setCurrentUser] = useState<any>(initialUser || null);
   const [activeTopic, setActiveTopic] = useState<string>("No Active Topic");
   const pathname = usePathname();
+  const router = useRouter();
   const supabase = createClient();
 
+  // 1. Load active topic helper
+  const fetchActiveTopic = async (userId: string) => {
+    const { data } = await supabase
+      .from("user_topics")
+      .select("title")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (data?.title) {
+      setActiveTopic(data.title);
+    }
+  };
+
+  // 2. Fetch session once on mount & subscribe to auth changes
   useEffect(() => {
-    async function loadHeaderData() {
+    async function initUser() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
       if (user) {
         setCurrentUser(user);
-
-        // Fetch latest active topic from Supabase
-        const { data } = await supabase
-          .from("user_topics")
-          .select("title")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .single();
-
-        if (data?.title) {
-          setActiveTopic(data.title);
-        }
+        fetchActiveTopic(user.id);
       }
     }
 
-    loadHeaderData();
-  }, [pathname]); // Refresh when switching routes
+    initUser();
 
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        const user = session?.user || null;
+        setCurrentUser(user);
+        if (user) fetchActiveTopic(user.id);
+      }
+    );
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
+
+  // 3. Re-check topic ONLY when navigating to routes where topics change
+  useEffect(() => {
+    if (currentUser && (pathname === "/learning-path" || pathname === "/dashboard")) {
+      fetchActiveTopic(currentUser.id);
+    }
+  }, [pathname]);
+
+  // 4. Smooth Client-Side Sign Out
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    window.location.href = "/";
+    setCurrentUser(null);
+    router.push("/");
+    router.refresh();
   };
 
   const userInitial = currentUser?.email
@@ -61,8 +88,8 @@ export function Header({ user: initialUser }: { user?: any }) {
   const navItems = [
     { name: "Todos", href: "/todos", icon: CheckSquare },
     { name: "Learning Path", href: "/learning-path", icon: Compass },
-    { name: "Performance", href: "/performance", icon: BarChart2 },
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    { name: "Performance", href: "/performance", icon: BarChart2 },
   ];
 
   return (
@@ -85,7 +112,7 @@ export function Header({ user: initialUser }: { user?: any }) {
           {currentUser && (
             <div className="hidden lg:flex items-center gap-1.5 px-3 py-1 rounded-full bg-background border border-border text-xs font-medium">
               <BookOpen className="h-3.5 w-3.5 text-primary" />
-              <span className="text-muted">Topic:</span>
+              <span className="text-muted-foreground">Topic:</span>
               <span className="text-primary font-semibold max-w-[150px] truncate">
                 {activeTopic}
               </span>
@@ -106,7 +133,7 @@ export function Header({ user: initialUser }: { user?: any }) {
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors ${
                     isActive
                       ? "bg-primary/10 text-primary font-semibold"
-                      : "text-muted hover:text-foreground hover:bg-border/50"
+                      : "text-muted-foreground hover:text-foreground hover:bg-border/50"
                   }`}
                 >
                   <Icon className="h-4 w-4" />
@@ -137,7 +164,7 @@ export function Header({ user: initialUser }: { user?: any }) {
                 size="sm"
                 onClick={handleSignOut}
                 title="Sign Out"
-                className="text-muted hover:text-foreground"
+                className="text-muted-foreground hover:text-foreground"
               >
                 <LogOut className="h-4 w-4" />
               </Button>

@@ -17,6 +17,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning className="h-full">
       <head>
         <script
+          suppressHydrationWarning
           dangerouslySetInnerHTML={{
             __html: `
               if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
