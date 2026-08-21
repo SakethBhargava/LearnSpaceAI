@@ -33,7 +33,7 @@ export async function POST(req: Request) {
     const lastMessage = messages[messages.length - 1];
     const prompt = lastMessage?.content || "Hello";
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash" });
 
     if (file) {
       const buffer = Buffer.from(await file.arrayBuffer());

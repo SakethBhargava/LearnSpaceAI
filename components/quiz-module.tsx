@@ -52,7 +52,6 @@ export function QuizModule() {
           return;
         }
 
-        // Querying title and proficiency_level matching your database schema
         const { data, error } = await supabase
           .from("user_topics")
           .select("title, proficiency_level")
@@ -105,7 +104,6 @@ export function QuizModule() {
 
       const text = await response.text();
 
-      // Extract JSON array safely
       const jsonMatch = text.match(/\[\s*\{[\s\S]*\}\s*\]/);
       if (!jsonMatch) {
         throw new Error("No valid JSON array found in response");
@@ -136,7 +134,6 @@ export function QuizModule() {
     setScore(currentScore);
     setSubmitted(true);
 
-    // Save evaluation log directly to Supabase for Performance tracking
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -166,11 +163,11 @@ export function QuizModule() {
   if (!topic) {
     return (
       <Card className="p-6 text-center border-border bg-card">
-        <HelpCircle className="h-8 w-8 text-muted mx-auto mb-2" />
+        <HelpCircle className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
         <p className="text-sm font-semibold text-foreground">
           No Active Topic Found
         </p>
-        <p className="text-xs text-muted mt-1">
+        <p className="text-xs text-muted-foreground mt-1">
           Set a topic under Learning Path to unlock quizzes.
         </p>
       </Card>
@@ -178,14 +175,15 @@ export function QuizModule() {
   }
 
   return (
-    <Card className="p-6 border-border bg-card space-y-6">
+    <Card className="p-4 sm:p-6 border-border bg-card space-y-6 w-full max-w-full overflow-hidden">
       {/* Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-4">
         <div>
           <h3 className="font-bold text-base text-foreground flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" /> Test Path Assessment
+            <Sparkles className="h-5 w-5 text-primary shrink-0" /> Test Path
+            Assessment
           </h3>
-          <div className="flex items-center gap-3 mt-1 text-xs">
+          <div className="flex flex-wrap items-center gap-2 mt-1 text-xs">
             <span className="text-muted-foreground">
               Topic: <strong className="text-primary">{topic}</strong>
             </span>
@@ -199,7 +197,7 @@ export function QuizModule() {
           size="sm"
           onClick={generateQuiz}
           disabled={loading}
-          className="rounded-xl text-xs gap-1.5 shrink-0"
+          className="rounded-xl text-xs gap-1.5 shrink-0 w-full sm:w-auto"
         >
           {loading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -210,12 +208,13 @@ export function QuizModule() {
         </Button>
       </div>
 
-      {/* Question Count Selector (10 to 20) */}
-      <div className="bg-muted/40 p-3.5 rounded-xl border border-border flex items-center justify-between gap-4">
+      {/* Question Count Selector (Responsive Layout Fix) */}
+      <div className="bg-muted/40 p-3.5 rounded-xl border border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full min-w-0">
         <label className="text-xs font-semibold text-foreground flex items-center gap-1.5 shrink-0">
-          <ListOrdered className="h-4 w-4 text-primary" /> Number of Questions
+          <ListOrdered className="h-4 w-4 text-primary shrink-0" /> Number of
+          Questions
         </label>
-        <div className="flex items-center gap-3 flex-1 max-w-xs">
+        <div className="flex items-center gap-3 w-full sm:w-auto sm:flex-1 sm:max-w-xs min-w-0">
           <input
             type="range"
             min={10}
@@ -224,9 +223,9 @@ export function QuizModule() {
             value={questionCount}
             disabled={loading || questions.length > 0}
             onChange={(e) => setQuestionCount(Number(e.target.value))}
-            className="flex-1 accent-primary cursor-pointer"
+            className="w-full flex-1 accent-primary cursor-pointer min-w-0"
           />
-          <span className="text-xs font-bold text-foreground bg-background border border-border px-2.5 py-1 rounded-md text-center min-w-[50px]">
+          <span className="text-xs font-bold text-foreground bg-background border border-border px-2.5 py-1 rounded-md text-center shrink-0 min-w-[55px]">
             {questionCount} Qs
           </span>
         </div>
@@ -234,13 +233,13 @@ export function QuizModule() {
 
       {/* Questions Render Stream */}
       {questions.length > 0 && (
-        <div className="space-y-6">
+        <div className="space-y-6 min-w-0">
           {questions.map((q, qIdx) => (
             <div
               key={qIdx}
-              className="space-y-3 border-b border-border/60 pb-4 last:border-b-0"
+              className="space-y-3 border-b border-border/60 pb-4 last:border-b-0 min-w-0"
             >
-              <p className="text-xs sm:text-sm font-semibold text-foreground">
+              <p className="text-xs sm:text-sm font-semibold text-foreground break-words">
                 {qIdx + 1}. {q.question}
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -266,9 +265,9 @@ export function QuizModule() {
                     <button
                       key={oIdx}
                       onClick={() => handleSelect(qIdx, oIdx)}
-                      className={`p-3 rounded-xl border text-left text-xs transition-colors flex items-center justify-between ${optionStyle}`}
+                      className={`p-3 rounded-xl border text-left text-xs transition-colors flex items-center justify-between gap-2 min-w-0 ${optionStyle}`}
                     >
-                      <span>{opt}</span>
+                      <span className="break-words flex-1">{opt}</span>
                       {submitted && isCorrect && (
                         <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
                       )}

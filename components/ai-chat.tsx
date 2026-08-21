@@ -31,14 +31,13 @@ export function AIChat() {
   const [loading, setLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
 
-  // Attachment States
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB
+  const MAX_FILE_SIZE = 15 * 1024 * 1024;
   const ACCEPTED_TYPES = [
     "image/*",
     "application/pdf",
@@ -106,7 +105,6 @@ export function AIChat() {
     setIsStreaming(false);
 
     try {
-      // Create FormData if sending binary files to API route
       const formData = new FormData();
       formData.append("messages", JSON.stringify(updatedMessages));
       if (currentFile) {
@@ -115,7 +113,7 @@ export function AIChat() {
 
       const response = await fetch("/api/ai/chat", {
         method: "POST",
-        body: formData, // Accepts FormData with message and file payload
+        body: formData,
       });
 
       if (!response.ok)
@@ -162,12 +160,12 @@ export function AIChat() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-card transition-colors">
+    <div className="flex flex-col h-full bg-card transition-colors min-w-0 w-full">
       {/* Header Bar with Study Timer */}
-      <div className="px-4 py-2 border-b border-border bg-card/50 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-2">
-          <Bot className="h-4 w-4 text-primary" />
-          <span className="text-xs font-semibold text-foreground">
+      <div className="px-3 py-2 border-b border-border bg-card/50 flex flex-wrap items-center justify-between gap-2 shrink-0">
+        <div className="flex items-center gap-1.5">
+          <Bot className="h-4 w-4 text-primary shrink-0" />
+          <span className="text-xs font-semibold text-foreground truncate">
             AI Study Assistant
           </span>
         </div>
@@ -175,14 +173,14 @@ export function AIChat() {
       </div>
 
       {/* Messages Feed */}
-      <div className="flex-1 p-4 overflow-y-auto space-y-4">
+      <div className="flex-1 p-3 sm:p-4 overflow-y-auto space-y-4 min-w-0">
         {messages.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-center p-6 text-muted">
+          <div className="h-full flex flex-col items-center justify-center text-center p-4 text-muted-foreground">
             <Bot className="h-10 w-10 text-primary mb-2 opacity-80" />
-            <p className="text-sm font-medium text-foreground">
+            <p className="text-xs sm:text-sm font-medium text-foreground">
               Ask Gemini anything about your active topic.
             </p>
-            <p className="text-xs text-muted mt-1">
+            <p className="text-[11px] text-muted-foreground mt-1 max-w-xs">
               Get instant clarifications, upload documents, or request quizzes.
             </p>
           </div>
@@ -190,33 +188,32 @@ export function AIChat() {
           messages.map((m, idx) => (
             <div
               key={idx}
-              className={`flex items-start gap-3 ${
+              className={`flex items-start gap-2.5 ${
                 m.role === "user" ? "justify-end" : "justify-start"
               }`}
             >
               {m.role === "assistant" && (
-                <div className="p-1.5 rounded-lg bg-primary/10 text-primary border border-primary/20 shrink-0 mt-1">
-                  <Bot className="h-4 w-4" />
+                <div className="p-1 rounded-lg bg-primary/10 text-primary border border-primary/20 shrink-0 mt-0.5">
+                  <Bot className="h-3.5 w-3.5" />
                 </div>
               )}
 
               <div
-                className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-xs sm:text-sm leading-relaxed ${
+                className={`max-w-[88%] sm:max-w-[82%] rounded-2xl px-3.5 py-2 text-xs sm:text-sm leading-relaxed min-w-0 break-words ${
                   m.role === "user"
                     ? "bg-primary text-primary-foreground font-medium rounded-tr-none"
                     : "bg-background border border-border text-foreground rounded-tl-none"
                 }`}
               >
-                {/* File Attachment Chip in User Message */}
                 {m.file && (
-                  <div className="flex items-center gap-2 mb-2 p-2 rounded bg-black/10 dark:bg-white/10 text-xs">
+                  <div className="flex items-center gap-1.5 mb-1.5 p-1.5 rounded bg-black/10 dark:bg-white/10 text-[11px]">
                     {m.file.type.startsWith("image/") ? (
-                      <ImageIcon className="h-4 w-4 shrink-0" />
+                      <ImageIcon className="h-3.5 w-3.5 shrink-0" />
                     ) : (
-                      <FileText className="h-4 w-4 shrink-0" />
+                      <FileText className="h-3.5 w-3.5 shrink-0" />
                     )}
                     <span className="truncate font-medium">{m.file.name}</span>
-                    <span className="opacity-75 text-[10px]">
+                    <span className="opacity-75 text-[9px] shrink-0">
                       ({m.file.size})
                     </span>
                   </div>
@@ -224,11 +221,13 @@ export function AIChat() {
 
                 {m.role === "assistant" ? (
                   m.content ? (
-                    <div className="prose dark:prose-invert max-w-none text-xs sm:text-sm leading-relaxed space-y-2">
+                    <div className="prose dark:prose-invert max-w-none text-xs sm:text-sm leading-relaxed space-y-1.5 overflow-hidden">
                       <ReactMarkdown
                         components={{
                           p: ({ children }) => (
-                            <p className="mb-2 last:mb-0">{children}</p>
+                            <p className="mb-1.5 last:mb-0 leading-relaxed">
+                              {children}
+                            </p>
                           ),
                           strong: ({ children }) => (
                             <strong className="font-bold text-foreground">
@@ -246,7 +245,7 @@ export function AIChat() {
                             </ol>
                           ),
                           code: ({ children }) => (
-                            <code className="bg-secondary text-foreground px-1.5 py-0.5 rounded text-[11px] font-mono border border-border">
+                            <code className="bg-secondary text-foreground px-1 py-0.5 rounded text-[11px] font-mono border border-border break-all">
                               {children}
                             </code>
                           ),
@@ -256,7 +255,7 @@ export function AIChat() {
                       </ReactMarkdown>
                     </div>
                   ) : (
-                    <span className="flex items-center gap-2 text-muted">
+                    <span className="flex items-center gap-2 text-muted-foreground text-xs">
                       <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
                       <span>
                         {isStreaming ? "Responding..." : "Thinking..."}
@@ -269,8 +268,8 @@ export function AIChat() {
               </div>
 
               {m.role === "user" && (
-                <div className="p-1.5 rounded-lg bg-background border border-border text-foreground shrink-0 mt-1">
-                  <User className="h-4 w-4" />
+                <div className="p-1 rounded-lg bg-background border border-border text-foreground shrink-0 mt-0.5">
+                  <User className="h-3.5 w-3.5" />
                 </div>
               )}
             </div>
@@ -279,27 +278,23 @@ export function AIChat() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* WhatsApp Style Attachment Bar */}
-      <div className="p-3 border-t border-border bg-card/50 backdrop-blur transition-colors space-y-2">
-        {/* Selected File Chip */}
+      {/* Input Bar */}
+      <div className="p-2 sm:p-3 border-t border-border bg-card/50 backdrop-blur transition-colors space-y-1.5 shrink-0 w-full min-w-0">
         {selectedFile && (
-          <div className="flex items-center justify-between bg-muted/60 border border-border px-3 py-1.5 rounded-lg text-xs">
-            <div className="flex items-center gap-2 truncate">
+          <div className="flex items-center justify-between bg-muted/60 border border-border px-2.5 py-1 rounded-lg text-[11px]">
+            <div className="flex items-center gap-1.5 truncate">
               {selectedFile.type.startsWith("image/") ? (
-                <ImageIcon className="h-4 w-4 text-primary shrink-0" />
+                <ImageIcon className="h-3.5 w-3.5 text-primary shrink-0" />
               ) : (
-                <FileText className="h-4 w-4 text-primary shrink-0" />
+                <FileText className="h-3.5 w-3.5 text-primary shrink-0" />
               )}
               <span className="truncate font-medium text-foreground">
                 {selectedFile.name}
               </span>
-              <span className="text-muted-foreground text-[10px]">
-                ({(selectedFile.size / (1024 * 1024)).toFixed(1)}MB)
-              </span>
             </div>
             <button
               onClick={handleRemoveFile}
-              className="text-muted-foreground hover:text-foreground p-0.5"
+              className="text-muted-foreground hover:text-foreground p-0.5 shrink-0"
               type="button"
             >
               <X className="h-3.5 w-3.5" />
@@ -307,16 +302,17 @@ export function AIChat() {
           </div>
         )}
 
-        {/* Size Error Banner */}
         {fileError && (
-          <p className="text-xs text-destructive font-medium px-1">
+          <p className="text-[11px] text-destructive font-medium px-1">
             {fileError}
           </p>
         )}
 
-        {/* Input Bar */}
-        <form onSubmit={handleSubmit} className="flex items-center gap-2">
-          {/* Hidden File Input */}
+        {/* Form Container */}
+        <form
+          onSubmit={handleSubmit}
+          className="flex items-center gap-1.5 w-full min-w-0"
+        >
           <input
             ref={fileInputRef}
             type="file"
@@ -329,26 +325,27 @@ export function AIChat() {
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask Gemini or attach a file..."
-            className="flex-1 bg-background border border-border text-foreground placeholder:text-muted rounded-full px-4 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors"
+            placeholder="Ask Gemini or attach file..."
+            className="flex-1 min-w-0 bg-background border border-border text-foreground placeholder:text-muted-foreground rounded-full px-3.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors"
           />
 
-          {/* Paperclip Button */}
           <Button
             type="button"
             variant="ghost"
-            className="h-9 w-9 p-0 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted shrink-0"
+            size="icon"
+            className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted shrink-0"
             onClick={() => fileInputRef.current?.click()}
+            title="Attach File"
           >
             <Paperclip className="h-4 w-4" />
           </Button>
 
-          {/* Send Button */}
           <Button
             type="submit"
-            size="sm"
+            size="icon"
             disabled={loading || (!input.trim() && !selectedFile)}
-            className="h-9 w-9 p-0 rounded-full shrink-0"
+            className="h-8 w-8 rounded-full shrink-0"
+            title="Send Message"
           >
             {loading ? (
               <Loader2 className="h-4 w-4 animate-spin" />

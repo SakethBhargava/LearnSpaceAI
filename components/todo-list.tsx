@@ -2,151 +2,165 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Plus, Trash2, CheckSquare, Square, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Plus, CheckCircle2, Circle, Trash2, Loader2 } from "lucide-react";
+
+interface Todo {
+  id: string;
+  title: string;
+  is_completed: boolean;
+}
 
 export function TodoList() {
-  const [todos, setTodos] = useState<any[]>([]);
-  const [taskText, setTaskText] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [todos, setTodos] = useState<Todo[]>([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(true);
   const supabase = createClient();
 
-  const fetchTodos = async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const { data } = await supabase
-      .from("todos")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
-
-    if (data) setTodos(data);
-  };
-
   useEffect(() => {
-    fetchTodos();
+    async function loadTodos() {
+      setLoading(true);
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (user) {
+        const { data } = await supabase
+          .from("todos")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false });
+
+        if (data) setTodos(data);
+      }
+      setLoading(false);
+    }
+
+    loadTodos();
   }, []);
 
-  const handleAddTodo = async (e: React.FormEvent) => {
+  const addTodo = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!taskText.trim()) return;
-    setLoading(true);
+    if (!input.trim()) return;
 
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (user) {
-      const { error } = await supabase.from("todos").insert({
-        task: taskText.trim(),
-        user_id: user.id,
-      });
+    if (!user) return;
 
-      if (!error) {
-        setTaskText("");
-        fetchTodos();
-      } else {
-        alert(error.message);
-      }
+    const newTodoTitle = input.trim();
+    setInput("");
+
+    const { data, error } = await supabase
+      .from("todos")
+      .insert({
+        user_id: user.id,
+        title: newTodoTitle,
+        is_completed: false,
+      })
+      .select()
+      .single();
+
+    if (data && !error) {
+      setTodos((prev) => [data, ...prev]);
     }
-    setLoading(false);
   };
 
   const toggleTodo = async (id: string, currentStatus: boolean) => {
-    const nextStatus = !currentStatus;
-
-    // Optimistic UI update
     setTodos((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, is_completed: nextStatus } : t)),
+      prev.map((t) =>
+        t.id === id ? { ...t, is_completed: !currentStatus } : t,
+      ),
     );
 
-    const { error } = await supabase
+    await supabase
       .from("todos")
-      .update({
-        is_completed: nextStatus,
-        updated_at: new Date().toISOString(),
-      })
+      .update({ is_completed: !currentStatus })
       .eq("id", id);
-
-    if (error) {
-      console.error("Failed to toggle todo status:", error);
-      fetchTodos();
-    }
   };
 
   const deleteTodo = async (id: string) => {
     setTodos((prev) => prev.filter((t) => t.id !== id));
     await supabase.from("todos").delete().eq("id", id);
-    fetchTodos();
   };
 
   return (
-    <div className="space-y-4">
-      <form onSubmit={handleAddTodo} className="flex gap-2">
+    <div className="space-y-4 w-full min-w-0">
+      {/* Input Form with Flex Constraint Fix */}
+      <form
+        onSubmit={addTodo}
+        className="flex items-center gap-2 w-full min-w-0"
+      >
         <input
           type="text"
-          value={taskText}
-          onChange={(e) => setTaskText(e.target.value)}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
           placeholder="Add a new task..."
-          className="flex-1 bg-background border border-border rounded-xl px-3.5 py-2 text-xs text-foreground placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-primary"
+          className="flex-1 min-w-0 bg-background border border-border text-foreground placeholder:text-muted-foreground rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors"
         />
         <Button
           type="submit"
-          size="sm"
-          disabled={loading}
-          className="rounded-xl px-3"
+          size="icon"
+          disabled={!input.trim()}
+          className="h-9 w-9 rounded-xl shrink-0"
+          title="Add Task"
         >
-          {loading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Plus className="h-4 w-4" />
-          )}
+          <Plus className="h-4 w-4" />
         </Button>
       </form>
 
-      <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-        {todos.length === 0 ? (
-          <p className="text-center text-xs text-muted-foreground py-4">
-            No active tasks found.
-          </p>
-        ) : (
-          todos.map((t) => (
+      {/* Todo List Items Stream */}
+      {loading ? (
+        <div className="p-4 text-center">
+          <Loader2 className="h-5 w-5 animate-spin text-primary mx-auto" />
+        </div>
+      ) : todos.length === 0 ? (
+        <p className="text-center text-xs text-muted-foreground py-4">
+          No active tasks found.
+        </p>
+      ) : (
+        <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
+          {todos.map((todo) => (
             <div
-              key={t.id}
-              className="flex items-center justify-between p-2.5 rounded-lg bg-background border border-border text-xs"
+              key={todo.id}
+              className={`p-2.5 rounded-xl border border-border bg-background flex items-center justify-between gap-2.5 transition-all ${
+                todo.is_completed ? "opacity-60 bg-muted/30" : ""
+              }`}
             >
-              <button
-                onClick={() => toggleTodo(t.id, t.is_completed)}
-                className="flex items-center gap-2 text-left"
+              <div
+                onClick={() => toggleTodo(todo.id, todo.is_completed)}
+                className="flex items-center gap-2.5 flex-1 min-w-0 cursor-pointer"
               >
-                {t.is_completed ? (
-                  <CheckSquare className="h-4 w-4 text-primary shrink-0" />
-                ) : (
-                  <Square className="h-4 w-4 text-muted-foreground shrink-0" />
-                )}
+                <button type="button" className="shrink-0 focus:outline-none">
+                  {todo.is_completed ? (
+                    <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                  ) : (
+                    <Circle className="h-4 w-4 text-muted-foreground hover:text-primary shrink-0 transition-colors" />
+                  )}
+                </button>
                 <span
-                  className={
-                    t.is_completed
+                  className={`text-xs font-medium truncate ${
+                    todo.is_completed
                       ? "line-through text-muted-foreground"
-                      : "text-foreground font-medium"
-                  }
+                      : "text-foreground"
+                  }`}
                 >
-                  {t.task}
+                  {todo.title}
                 </span>
-              </button>
+              </div>
+
               <button
-                onClick={() => deleteTodo(t.id)}
-                className="text-muted-foreground hover:text-destructive transition-colors"
+                onClick={() => deleteTodo(todo.id)}
+                className="text-muted-foreground hover:text-destructive p-1 transition-colors shrink-0"
+                title="Delete Task"
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
             </div>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

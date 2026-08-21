@@ -2,108 +2,143 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { CheckCircle2, Circle, Loader2 } from "lucide-react";
+import { CheckCircle2, Circle, Loader2, BookOpen } from "lucide-react";
 
-// 1. Add Props Interface
-interface ModuleListProps {
-  topicId?: string | null;
-  isParentLoading?: boolean;
-}
-
-interface Module {
+interface ModuleItem {
   id: string;
   title: string;
   is_completed: boolean;
+  order_index: number;
 }
 
-// 2. Accept props in component definition
+interface ModuleListProps {
+  topicId: string | null;
+  isParentLoading: boolean;
+}
+
 export function ModuleList({ topicId, isParentLoading }: ModuleListProps) {
-  const [modules, setModules] = useState<Module[]>([]);
-  const [topicTitle, setTopicTitle] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [modules, setModules] = useState<ModuleItem[]>([]);
+  const [loadingModules, setLoadingModules] = useState(false);
+  const [topicTitle, setTopicTitle] = useState<string>("");
   const supabase = createClient();
 
   useEffect(() => {
-    async function fetchDashboardModules() {
-      if (isParentLoading) return;
-      setLoading(true);
+    if (!topicId) return;
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+    async function loadModules() {
+      setLoadingModules(true);
 
-      if (!user) {
-        setLoading(false);
-        return;
+      const { data: topicData } = await supabase
+        .from("user_topics")
+        .select("title")
+        .eq("id", topicId)
+        .single();
+
+      if (topicData) {
+        setTopicTitle(topicData.title);
       }
 
-      // Query active topic
-      const { data: activeTopic } = topicId
-        ? await supabase
-            .from("user_topics")
-            .select("id, title")
-            .eq("id", topicId)
-            .maybeSingle()
-        : await supabase
-            .from("user_topics")
-            .select("id, title")
-            .eq("user_id", user.id)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
+      const { data } = await supabase
+        .from("topic_modules")
+        .select("*")
+        .eq("topic_id", topicId)
+        .order("order_index", { ascending: true });
 
-      if (activeTopic) {
-        setTopicTitle(activeTopic.title);
-
-        const { data: dbModules } = await supabase
-          .from("topic_modules")
-          .select("id, title, is_completed")
-          .eq("topic_id", activeTopic.id)
-          .order("order_index", { ascending: true });
-
-        if (dbModules) setModules(dbModules);
+      if (data) {
+        setModules(data);
       }
-      setLoading(false);
+      setLoadingModules(false);
     }
 
-    fetchDashboardModules();
-  }, [topicId, isParentLoading]);
+    loadModules();
+  }, [topicId]);
 
-  if (loading || isParentLoading) {
+  const toggleModuleCompletion = async (
+    moduleId: string,
+    currentStatus: boolean,
+  ) => {
+    const updatedStatus = !currentStatus;
+
+    setModules((prev) =>
+      prev.map((m) =>
+        m.id === moduleId ? { ...m, is_completed: updatedStatus } : m,
+      ),
+    );
+
+    const updatedModules = modules.map((m) =>
+      m.id === moduleId ? { ...m, is_completed: updatedStatus } : m,
+    );
+
+    const completedCount = updatedModules.filter((m) => m.is_completed).length;
+    const progress = Math.round((completedCount / updatedModules.length) * 100);
+
+    await supabase
+      .from("topic_modules")
+      .update({
+        is_completed: updatedStatus,
+        completed_at: updatedStatus ? new Date().toISOString() : null,
+      })
+      .eq("id", moduleId);
+
+    if (topicId) {
+      await supabase
+        .from("user_topics")
+        .update({ progress_percent: progress })
+        .eq("id", topicId);
+    }
+  };
+
+  if (isParentLoading || loadingModules) {
     return (
-      <div className="flex items-center justify-center py-6 text-xs text-muted-foreground gap-2">
-        <Loader2 className="h-4 w-4 animate-spin text-primary" />
-        <span>Loading active modules...</span>
+      <div className="p-4 text-center space-y-2">
+        <Loader2 className="h-5 w-5 animate-spin text-primary mx-auto" />
+        <p className="text-xs text-muted-foreground">Loading modules...</p>
       </div>
     );
   }
 
-  if (!topicTitle || modules.length === 0) {
+  if (!topicId || modules.length === 0) {
     return (
-      <div className="text-center py-6 text-xs text-muted-foreground">
-        No active modules found. Go to Learning Path to create a roadmap.
+      <div className="p-4 text-center space-y-1 text-muted-foreground">
+        <BookOpen className="h-6 w-6 text-muted-foreground mx-auto mb-1 opacity-70" />
+        <p className="text-xs font-semibold text-foreground">
+          No Modules Found
+        </p>
+        <p className="text-[11px]">
+          Generate a learning path to populate your roadmap modules.
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-3">
-      <div className="text-xs font-bold text-primary uppercase tracking-wider">
-        Topic: {topicTitle}
-      </div>
+    <div className="space-y-3 min-w-0 w-full">
+      {topicTitle && (
+        <div className="text-[11px] font-bold text-primary uppercase tracking-wider mb-2 truncate">
+          Topic: {topicTitle}
+        </div>
+      )}
+
       <div className="space-y-2">
         {modules.map((m) => (
           <div
             key={m.id}
-            className="flex items-center gap-2.5 p-2.5 rounded-lg bg-background border border-border text-xs"
+            onClick={() => toggleModuleCompletion(m.id, m.is_completed)}
+            className={`p-2.5 rounded-xl border border-border bg-background flex items-center gap-2.5 cursor-pointer hover:border-primary/40 transition-all ${
+              m.is_completed
+                ? "opacity-80 border-emerald-500/30 bg-emerald-500/5"
+                : ""
+            }`}
           >
-            {m.is_completed ? (
-              <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-            ) : (
-              <Circle className="h-4 w-4 text-muted-foreground shrink-0" />
-            )}
+            <button type="button" className="shrink-0 focus:outline-none">
+              {m.is_completed ? (
+                <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+              ) : (
+                <Circle className="h-4 w-4 text-muted-foreground hover:text-primary shrink-0 transition-colors" />
+              )}
+            </button>
             <span
-              className={`truncate font-medium ${
+              className={`text-xs font-medium truncate ${
                 m.is_completed
                   ? "line-through text-muted-foreground"
                   : "text-foreground"
