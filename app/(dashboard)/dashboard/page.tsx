@@ -43,47 +43,54 @@ export default function DashboardPage() {
   }, []);
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 text-foreground transition-colors">
-      <div className="text-center space-y-2">
-        <h1 className="text-3xl font-black flex items-center justify-center gap-2 text-foreground">
-          <LayoutDashboard className="h-8 w-8 text-primary" /> Learning
-          Workspace
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-8 text-foreground transition-colors min-w-0">
+      {/* Page Header */}
+      <div className="text-center space-y-2 max-w-2xl mx-auto">
+        <h1 className="text-2xl sm:text-3xl font-black flex items-center justify-center gap-2.5 text-foreground tracking-tight">
+          <LayoutDashboard className="h-7 w-7 sm:h-8 sm:w-8 text-primary shrink-0" />
+          Learning Workspace
         </h1>
-        <p className="text-sm text-muted">
+        <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
           Manage your topics, interact with Gemini AI, take quizzes, and track
           study progress.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-        {/* Main Section */}
-        <div className="lg:col-span-2 space-y-6">
-          <Card className="h-[calc(100vh-250px)] min-h-[420px] max-h-[600px] border-border bg-card shadow-sm flex flex-col transition-colors">
-            <CardHeader className="px-5 py-3 border-b border-border shrink-0">
-              <CardTitle className="text-sm font-semibold text-foreground flex items-center justify-between">
+      {/* Main Grid Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+        {/* Left Column (Primary Tools) */}
+        <div className="lg:col-span-2 space-y-6 flex flex-col justify-between">
+          {/* AI Chat Card */}
+          <Card className="h-[520px] border-border bg-card shadow-sm flex flex-col overflow-hidden transition-all rounded-xl">
+            <CardHeader className="px-5 py-3.5 border-b border-border shrink-0 bg-muted/20">
+              <CardTitle className="text-sm font-bold text-foreground flex items-center justify-between">
                 <span>Gemini AI Workspace</span>
-                <span className="text-[10px] px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 font-medium">
+                <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-semibold tracking-wide uppercase">
                   Live Session
                 </span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="flex-1 p-0 overflow-hidden">
+            <CardContent className="flex-1 p-0 overflow-hidden relative">
               <AIChat />
             </CardContent>
           </Card>
 
-          <QuizModule />
+          {/* Quiz Module */}
+          <Card className="border-border bg-card shadow-sm transition-all rounded-xl overflow-hidden">
+            <QuizModule />
+          </Card>
         </div>
 
-        {/* Right Sidebar */}
-        <div className="space-y-6">
-          <Card className="border-border bg-card shadow-sm transition-colors">
-            <CardHeader className="px-5 py-3.5 border-b border-border">
-              <CardTitle className="text-sm font-semibold text-foreground">
+        {/* Right Sidebar (Tracking & Resources) */}
+        <div className="space-y-6 flex flex-col justify-start">
+          {/* Roadmap Modules */}
+          <Card className="border-border bg-card shadow-sm transition-all rounded-xl overflow-hidden">
+            <CardHeader className="px-5 py-3.5 border-b border-border bg-muted/20">
+              <CardTitle className="text-sm font-bold text-foreground">
                 Roadmap Modules
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-5 pt-4">
+            <CardContent className="p-5">
               <ModuleList
                 topicId={activeTopicId}
                 isParentLoading={loadingTopic}
@@ -91,24 +98,26 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-border bg-card shadow-sm transition-colors">
-            <CardHeader className="px-5 py-3.5 border-b border-border">
-              <CardTitle className="text-sm font-semibold text-foreground">
+          {/* Workspace Tasks */}
+          <Card className="border-border bg-card shadow-sm transition-all rounded-xl overflow-hidden">
+            <CardHeader className="px-5 py-3.5 border-b border-border bg-muted/20">
+              <CardTitle className="text-sm font-bold text-foreground">
                 Workspace Tasks
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-5 pt-4">
+            <CardContent className="p-5">
               <TodoList />
             </CardContent>
           </Card>
 
-          <Card className="border-border bg-card shadow-sm transition-colors">
-            <CardHeader className="px-5 py-3.5 border-b border-border">
-              <CardTitle className="text-sm font-semibold text-foreground">
+          {/* Resources & Documents */}
+          <Card className="border-border bg-card shadow-sm transition-all rounded-xl overflow-hidden">
+            <CardHeader className="px-5 py-3.5 border-b border-border bg-muted/20">
+              <CardTitle className="text-sm font-bold text-foreground">
                 Resources
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-5 pt-4">
+            <CardContent className="p-5">
               <DocumentManager />
             </CardContent>
           </Card>
