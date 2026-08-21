@@ -57,12 +57,12 @@ export default function DashboardPage() {
       </div>
 
       {/* Main Grid Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
-        {/* Left Column (Primary Tools) */}
-        <div className="lg:col-span-2 space-y-6 flex flex-col justify-between">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        {/* Left Column (Primary Interactive Tools) */}
+        <div className="lg:col-span-2 space-y-6">
           {/* AI Chat Card */}
-          <Card className="h-[520px] border-border bg-card shadow-sm flex flex-col overflow-hidden transition-all rounded-xl">
-            <CardHeader className="px-5 py-3.5 border-b border-border shrink-0 bg-muted/20">
+          <Card className="h-[550px] border-border bg-card shadow-sm flex flex-col overflow-hidden rounded-xl">
+            <CardHeader className="px-6 py-4 border-b border-border shrink-0 bg-muted/20">
               <CardTitle className="text-sm font-bold text-foreground flex items-center justify-between">
                 <span>Gemini AI Workspace</span>
                 <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-semibold tracking-wide uppercase">
@@ -70,27 +70,31 @@ export default function DashboardPage() {
                 </span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="flex-1 p-0 overflow-hidden relative">
-              <AIChat />
+            <CardContent className="flex-1 p-4 sm:p-6 overflow-hidden relative">
+              <div className="h-full w-full rounded-lg border border-border/50 bg-background/50 overflow-hidden">
+                <AIChat />
+              </div>
             </CardContent>
           </Card>
 
-          {/* Quiz Module */}
-          <Card className="border-border bg-card shadow-sm transition-all rounded-xl overflow-hidden">
-            <QuizModule />
+          {/* Quiz Module Card */}
+          <Card className="border-border bg-card shadow-sm rounded-xl overflow-hidden">
+            <CardContent className="p-6">
+              <QuizModule />
+            </CardContent>
           </Card>
         </div>
 
         {/* Right Sidebar (Tracking & Resources) */}
-        <div className="space-y-6 flex flex-col justify-start">
+        <div className="space-y-6">
           {/* Roadmap Modules */}
-          <Card className="border-border bg-card shadow-sm transition-all rounded-xl overflow-hidden">
-            <CardHeader className="px-5 py-3.5 border-b border-border bg-muted/20">
+          <Card className="border-border bg-card shadow-sm rounded-xl overflow-hidden">
+            <CardHeader className="px-6 py-4 border-b border-border bg-muted/20">
               <CardTitle className="text-sm font-bold text-foreground">
                 Roadmap Modules
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-5">
+            <CardContent className="p-6">
               <ModuleList
                 topicId={activeTopicId}
                 isParentLoading={loadingTopic}
@@ -99,25 +103,25 @@ export default function DashboardPage() {
           </Card>
 
           {/* Workspace Tasks */}
-          <Card className="border-border bg-card shadow-sm transition-all rounded-xl overflow-hidden">
-            <CardHeader className="px-5 py-3.5 border-b border-border bg-muted/20">
+          <Card className="border-border bg-card shadow-sm rounded-xl overflow-hidden">
+            <CardHeader className="px-6 py-4 border-b border-border bg-muted/20">
               <CardTitle className="text-sm font-bold text-foreground">
                 Workspace Tasks
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-5">
+            <CardContent className="p-6">
               <TodoList />
             </CardContent>
           </Card>
 
           {/* Resources & Documents */}
-          <Card className="border-border bg-card shadow-sm transition-all rounded-xl overflow-hidden">
-            <CardHeader className="px-5 py-3.5 border-b border-border bg-muted/20">
+          <Card className="border-border bg-card shadow-sm rounded-xl overflow-hidden">
+            <CardHeader className="px-6 py-4 border-b border-border bg-muted/20">
               <CardTitle className="text-sm font-bold text-foreground">
                 Resources
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-5">
+            <CardContent className="p-6">
               <DocumentManager />
             </CardContent>
           </Card>
