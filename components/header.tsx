@@ -88,8 +88,8 @@ export function Header({ user: initialUser }: { user?: any }) {
   const navItems = [
     { name: "Todos", href: "/todos", icon: CheckSquare },
     { name: "Learning Path", href: "/learning-path", icon: Compass },
-    { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { name: "Performance", href: "/performance", icon: BarChart2 },
+    { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   ];
 
   return (

@@ -22,7 +22,7 @@ export default function LoginPage() {
     if (error) {
       alert(error.message);
     } else {
-      window.location.href = "/dashboard";
+      window.location.href = "/learning-path";
     }
     setLoading(false);
   };

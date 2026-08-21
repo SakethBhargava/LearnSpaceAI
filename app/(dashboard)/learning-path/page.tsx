@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -12,6 +13,8 @@ import {
   Circle,
   Lock,
   RefreshCw,
+  LayoutDashboard,
+  ArrowRight,
 } from "lucide-react";
 
 interface ActiveTopic {
@@ -72,7 +75,7 @@ export default function LearningPathPage() {
       return;
     }
 
-    // 1. Fetch current active topic from DB
+    // Fetch current active topic from DB
     const { data: topicData } = await supabase
       .from("user_topics")
       .select("*")
@@ -84,7 +87,7 @@ export default function LearningPathPage() {
     if (topicData) {
       setActiveTopic(topicData);
 
-      // 2. RETRIEVE MODULES FROM DB FIRST (No AI trigger on page re-visits)
+      // RETRIEVE MODULES FROM DB FIRST
       const { data: moduleData } = await supabase
         .from("topic_modules")
         .select("*")
@@ -141,7 +144,6 @@ export default function LearningPathPage() {
         const cleanJson = rawText.replace(/```json|```/g, "").trim();
         moduleTitles = JSON.parse(cleanJson);
       } catch {
-        // Fallback title formatting if JSON string extraction is imperfect
         moduleTitles = [
           `Module 1: Fundamentals of ${topic.trim()}`,
           `Module 2: Core Concepts & Practice`,
@@ -188,17 +190,14 @@ export default function LearningPathPage() {
     );
     setModules(updatedModules);
 
-    // Calculate progress percentage
     const completedCount = updatedModules.filter((m) => m.is_completed).length;
     const progress = Math.round((completedCount / updatedModules.length) * 100);
 
-    // Update individual module state
     await supabase
       .from("topic_modules")
       .update({ is_completed: !currentStatus })
       .eq("id", moduleId);
 
-    // Update parent topic progress
     if (activeTopic) {
       await supabase
         .from("user_topics")
@@ -236,7 +235,7 @@ export default function LearningPathPage() {
                 value={topic}
                 onChange={(e) => setTopic(e.target.value)}
                 placeholder="e.g., Next.js 14, Java Core, Data Structures..."
-                className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground"
                 required
               />
             </div>
@@ -315,7 +314,11 @@ export default function LearningPathPage() {
               disabled={!isCompleted}
               onClick={() => setIsChangingPath(true)}
               variant={isCompleted ? "default" : "outline"}
-              className="rounded-xl gap-2 text-xs"
+              className={`rounded-xl gap-2 text-xs font-semibold ${
+                !isCompleted
+                  ? "border-border bg-muted/50 text-foreground opacity-100 dark:bg-muted/30"
+                  : ""
+              }`}
             >
               {isCompleted ? (
                 <>
@@ -323,7 +326,8 @@ export default function LearningPathPage() {
                 </>
               ) : (
                 <>
-                  <Lock className="h-4 w-4" /> Finish 100% to Unlock New Path
+                  <Lock className="h-4 w-4 text-primary" /> Finish 100% to
+                  Unlock New Path
                 </>
               )}
             </Button>
@@ -367,6 +371,26 @@ export default function LearningPathPage() {
               </Card>
             ))}
           </div>
+
+          {/* Bottom Action Card */}
+          <Card className="border-border bg-card p-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
+            <div className="space-y-1 text-center sm:text-left">
+              <h3 className="text-base font-bold flex items-center justify-center sm:justify-start gap-2 text-foreground">
+                <LayoutDashboard className="h-5 w-5 text-primary" /> Ready to
+                Study & Complete Modules?
+              </h3>
+              <p className="text-xs text-muted-foreground max-w-lg">
+                Head over to your main Workspace Dashboard to chat with AI
+                tutor, solve generated quizzes, manage tasks, and mark your path
+                progress!
+              </p>
+            </div>
+            <Link href="/dashboard" className="shrink-0 w-full sm:w-auto">
+              <Button className="w-full sm:w-auto rounded-xl gap-2 font-semibold">
+                Go to Dashboard <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
+          </Card>
         </div>
       )}
     </div>
