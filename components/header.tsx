@@ -101,18 +101,18 @@ export function Header({ user: initialUser }: { user?: any }) {
   ];
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border bg-card px-4 sm:px-6 h-[65px] flex items-center transition-colors">
-      <div className="w-full max-w-7xl mx-auto flex items-center justify-between gap-4">
+    <header className="sticky top-0 z-50 border-b border-border bg-card px-3 sm:px-6 h-[65px] flex items-center transition-colors w-full max-w-full overflow-hidden">
+      <div className="w-full max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-4 min-w-0">
         {/* Left: Logo & Active Topic */}
-        <div className="flex items-center gap-3 sm:gap-4">
+        <div className="flex items-center gap-2 sm:gap-4 min-w-0 shrink-0">
           <Link
             href="/"
-            className="flex items-center gap-2 font-black text-lg sm:text-xl text-foreground hover:opacity-90 shrink-0 transition-opacity"
+            className="flex items-center gap-1.5 sm:gap-2 font-black text-base sm:text-xl text-foreground hover:opacity-90 shrink-0 transition-opacity"
           >
-            <div className="p-1.5 bg-primary rounded-lg text-white">
-              <Sparkles className="h-5 w-5" />
+            <div className="p-1 sm:p-1.5 bg-primary rounded-lg text-white shrink-0">
+              <Sparkles className="h-4 w-4 sm:h-5 sm:w-5" />
             </div>
-            <span>
+            <span className="truncate">
               LearnSpace<span className="text-primary">AI</span>
             </span>
           </Link>
@@ -152,12 +152,12 @@ export function Header({ user: initialUser }: { user?: any }) {
           </nav>
         )}
 
-        {/* Right: Theme Toggle, Profile & Hamburger Menu */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        {/* Right: Theme Toggle, User Profile / Auth Buttons */}
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           <ThemeToggle />
 
           {currentUser ? (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <div className="flex items-center gap-2 p-1 sm:p-1.5 rounded-full bg-background border border-border">
                 <div className="h-7 w-7 rounded-full bg-primary text-white flex items-center justify-center font-bold text-xs shadow-sm shrink-0">
                   {userInitial}
@@ -177,30 +177,36 @@ export function Header({ user: initialUser }: { user?: any }) {
                 <LogOut className="h-4 w-4" />
               </Button>
 
-              {/* Hamburger Toggle */}
               <Button
                 variant="outline"
                 size="icon"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="lg:hidden h-9 w-9 rounded-xl border-border bg-card"
+                className="lg:hidden h-8 w-8 sm:h-9 sm:w-9 rounded-xl border-border bg-card shrink-0"
                 aria-label="Toggle Navigation Menu"
               >
                 {mobileMenuOpen ? (
-                  <X className="h-5 w-5 text-foreground" />
+                  <X className="h-4 w-4 sm:h-5 sm:w-5 text-foreground" />
                 ) : (
-                  <Menu className="h-5 w-5 text-foreground" />
+                  <Menu className="h-4 w-4 sm:h-5 sm:w-5 text-foreground" />
                 )}
               </Button>
             </div>
           ) : (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               <Link href="/login">
-                <Button size="sm" variant="outline" className="rounded-xl">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="rounded-xl h-8 sm:h-9 px-2.5 sm:px-3 text-xs font-medium shrink-0"
+                >
                   Sign In
                 </Button>
               </Link>
               <Link href="/signup">
-                <Button size="sm" className="rounded-xl">
+                <Button
+                  size="sm"
+                  className="rounded-xl h-8 sm:h-9 px-2.5 sm:px-3 text-xs font-semibold shrink-0 shadow-sm"
+                >
                   Sign Up
                 </Button>
               </Link>
@@ -209,10 +215,9 @@ export function Header({ user: initialUser }: { user?: any }) {
         </div>
       </div>
 
-      {/* Solid Opaque Mobile & Tablet Drawer */}
+      {/* Solid Mobile Drawer */}
       {currentUser && mobileMenuOpen && (
-        <div className="lg:hidden fixed top-[65px] left-0 w-full bg-card border-b border-border p-5 shadow-2xl space-y-4 z-50 animate-in slide-in-from-top-2 duration-200">
-          {/* Active Topic Card */}
+        <div className="lg:hidden fixed top-[65px] left-0 w-full bg-card border-b border-border p-4 sm:p-5 shadow-2xl space-y-4 z-50 animate-in slide-in-from-top-2 duration-200">
           <div className="flex items-center justify-between p-3 rounded-xl bg-background border border-border text-xs">
             <div className="flex items-center gap-2">
               <BookOpen className="h-4 w-4 text-primary shrink-0" />
@@ -223,7 +228,6 @@ export function Header({ user: initialUser }: { user?: any }) {
             </span>
           </div>
 
-          {/* Navigation Links */}
           <nav className="flex flex-col gap-1.5">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -246,7 +250,6 @@ export function Header({ user: initialUser }: { user?: any }) {
             })}
           </nav>
 
-          {/* User Account Row */}
           <div className="pt-3 border-t border-border flex items-center justify-between gap-2">
             <span className="text-xs text-muted-foreground truncate max-w-[200px]">
               {currentUser.email}

@@ -35,11 +35,11 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-4">
+    <div className="flex-1 flex items-center justify-center p-4 py-8 sm:py-12">
       <Card className="w-full max-w-md border-border bg-card/60 backdrop-blur-sm shadow-lg">
-        <CardHeader className="text-center">
+        <CardHeader className="text-center pb-4">
           <CardTitle className="text-2xl font-black bg-gradient-to-r from-primary to-indigo-500 bg-clip-text text-transparent">
-            Create LMS-AI Account
+            Create Your Account
           </CardTitle>
         </CardHeader>
         <CardContent>
