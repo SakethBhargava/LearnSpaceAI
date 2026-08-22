@@ -14,7 +14,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning className="h-full">
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className="h-full overflow-x-hidden"
+    >
       <head>
         <script
           suppressHydrationWarning
@@ -29,12 +33,12 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="antialiased min-h-screen flex flex-col justify-between bg-background text-foreground transition-colors duration-200">
+      <body className="antialiased min-h-screen flex flex-col justify-between bg-background text-foreground transition-colors duration-200 overflow-x-hidden w-full max-w-full">
         {/* Sticky Global Header */}
         <Header />
 
         {/* Page Viewport Content */}
-        <div className="flex-1 flex flex-col">{children}</div>
+        <div className="flex-1 flex flex-col w-full min-w-0">{children}</div>
 
         <Footer />
       </body>
